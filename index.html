@@ -1,4 +1,4 @@
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OP Synergy Builder v0.6.1</title><style>
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OP Synergy Builder v0.6.3</title><style>
 
   :root{
     --bg:#0a0d12;--panel:#111722;--panel2:#151d2a;--panel3:#0d131d;--line:#263043;
@@ -193,7 +193,7 @@ body{background:radial-gradient(circle at 50% -20%,#1a2639 0,transparent 36%),va
   <header class="topbar">
     <div class="brand">
       <div class="brand-badge">OP</div>
-      <div><div class="brand-title">Synergy Builder <span class="muted" style="font-weight:650">v0.6.2</span></div><div class="brand-sub">OPTCG Deckbuilding & Combo-Hilfe</div></div>
+      <div><div class="brand-title">Synergy Builder <span class="muted" style="font-weight:650">v0.6.3</span></div><div class="brand-sub">OPTCG Deckbuilding & Combo-Hilfe</div></div>
     </div>
     <div class="top-nav">
       <button id="topCardsNav" class="nav-btn active">Karten</button>
@@ -624,7 +624,7 @@ function applyFilters(){
     if(state.flags.has('trigger')&&!c.hasTrigger)return false;
     if(state.flags.has('parallel')&&!c.parallel)return false;
     if(state.flags.has('searcher')&&!state.searchRules.has(c.id))return false;
-    if($('leaderLegal').checked&&leaderColors.length&&c.category!=='Leader'&&!c.colors.some(x=>leaderColors.includes(x)))return false;
+    if($('leaderLegal').checked&&leaderColors.length&&(!c.colors.length||!c.colors.every(x=>leaderColors.includes(x))))return false;
     return true;
   });
   const sort=$('sort').value;
@@ -651,7 +651,7 @@ function deckCopies(){const out=[];for(const x of Object.values(state.deck.cards
 function countCopies(test){let n=0;for(const x of Object.values(state.deck.cards))if(test(x.card))n+=x.qty;return n}
 function donForTurn(order,turn){turn=Math.max(1,Number(turn)||1);if(order==='first')return Math.min(10,1+(turn-1)*2);return Math.min(10,turn*2)}
 function showView(view){state.view=view;const deck=view==='deck';$('browseView').classList.toggle('hidden',deck);$('deckView').classList.toggle('hidden',!deck);$('topCardsNav')?.classList.toggle('active',!deck);$('topDeckNav')?.classList.toggle('active',deck);$('mobileToolbar')?.classList.toggle('deck-mode',deck);if($('mobileDeckLabel'))$('mobileDeckLabel').textContent=deck?'Karten':'Deck';if(deck){renderDeck();renderCombo();window.scrollTo({top:0,behavior:'smooth'})}else{window.scrollTo({top:0,behavior:'smooth'})}}
-function leaderLegalCard(c){const L=state.deck.leader;if(!L||c.category==='Leader')return true;return c.colors.some(x=>L.colors.includes(x))}
+function leaderLegalCard(c){const L=state.deck.leader;if(!L||c.category==='Leader')return true;return c.colors.length>0&&c.colors.every(x=>L.colors.includes(x))}
 function cardEffectCount(tag){return countCopies(c=>effectTagMatches(c,tag))}
 function renderLeader(){const root=$('leaderSlot');root.innerHTML='';const c=state.deck.leader;if(!c){root.innerHTML='<div class="leader-empty"><div><b>Noch kein Leader</b><br><small>Über „Leader suchen“ auswählen.</small></div></div>';return}const wrap=document.createElement('div');wrap.className='leader-display';wrap.innerHTML=`<img class="leader-art leaderart" alt="${escapeHtml(c.name)}"><div><div class="leader-info-name">${escapeHtml(c.name)}</div><div class="leader-info-meta">${escapeHtml(c.id)}<br>${escapeHtml(c.colors.join('/'))} • ${escapeHtml(c.traits.join(' / '))}<br>${c.life!=null?c.life+' Life • ':''}${c.power!=null?c.power+' Power':''}</div><button class="btn tiny" id="changeLeaderInline" style="margin-top:9px">Anderen Leader suchen</button></div>`;wireCardImage(wrap.querySelector('.leaderart'),c);root.appendChild(wrap);wrap.querySelector('#changeLeaderInline').onclick=findLeader;}
 function renderDeckCards(){const root=$('deckList');root.innerHTML='';const entries=Object.entries(state.deck.cards).sort((a,b)=>(a[1].card.cost??99)-(b[1].card.cost??99)||a[1].card.id.localeCompare(b[1].card.id));$('deckEmpty').classList.toggle('hidden',entries.length>0);for(const [k,x] of entries){const c=x.card;const el=document.createElement('article');el.className='deck-card';el.innerHTML=`<div class="deck-card-image"><img class="deckgridart" alt="${escapeHtml(c.name)}"><span class="deck-qty">×${x.qty}</span></div><div class="deck-card-footer"><div class="deck-card-name">${escapeHtml(c.name)}</div><div class="deck-card-meta">${escapeHtml(c.id)} • ${c.cost??'-'} Cost</div><div class="deck-card-controls"><button class="btn minus">−</button><button class="btn plus">+</button><button class="btn comboBtn">Combo</button></div></div>`;wireCardImage(el.querySelector('.deckgridart'),c);el.querySelector('.deck-card-image').onclick=()=>openCard(c);el.querySelector('.minus').onclick=()=>changeQty(k,-1);el.querySelector('.plus').onclick=()=>changeQty(k,1);el.querySelector('.comboBtn').onclick=()=>setComboSource(c,true);root.appendChild(el)}}
