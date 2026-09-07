@@ -1,4 +1,4 @@
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OP Synergy Builder v0.7.0</title><style>
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OP Synergy Builder v0.7.1</title><style>
 
   :root{
     --bg:#0a0d12;--panel:#111722;--panel2:#151d2a;--panel3:#0d131d;--line:#263043;
@@ -198,7 +198,7 @@ body{background:radial-gradient(circle at 50% -20%,#1a2639 0,transparent 36%),va
   <header class="topbar">
     <div class="brand">
       <div class="brand-badge">OP</div>
-      <div><div class="brand-title">Synergy Builder <span class="muted" style="font-weight:650">v0.7.0</span></div><div class="brand-sub">OPTCG Deckbuilding & Combo-Hilfe</div></div>
+      <div><div class="brand-title">Synergy Builder <span class="muted" style="font-weight:650">v0.7.1</span></div><div class="brand-sub">OPTCG Deckbuilding & Combo-Hilfe</div></div>
     </div>
     <div class="top-nav">
       <button id="topCardsNav" class="nav-btn active">Karten</button>
@@ -310,7 +310,7 @@ body{background:radial-gradient(circle at 50% -20%,#1a2639 0,transparent 36%),va
         <div>
           <div class="combo-controls"><div class="seg"><button id="comboFirst" class="active">First</button><button id="comboSecond">Second</button></div><select id="comboTurn" class="select" style="width:auto"><option value="1">Runde 1</option><option value="2">Runde 2</option><option value="3">Runde 3</option><option value="4">Runde 4</option><option value="5">Runde 5</option><option value="6">Runde 6+</option></select><select id="comboPool" class="select" style="width:auto"><option value="all">Alle leader-legalen Karten</option><option value="deck">Nur mein Deck</option></select><label class="chip active" style="display:flex;align-items:center;gap:6px"><input id="deductSourceCost" type="checkbox" checked> Kosten der Startkarte abziehen</label></div>
           <div class="combo-budget" style="grid-template-columns:repeat(4,1fr)"><div class="budget-tile"><b id="comboDon">1</b><span>DON!! diese Runde</span></div><div class="budget-tile"><b id="comboSourceCost">0</b><span>Startkarten-Kosten</span></div><div class="budget-tile effect"><b id="comboRefund">0</b><span>durch Effekt wieder aktiv</span></div><div class="budget-tile"><b id="comboRemaining">1</b><span>effektiv verfügbar</span></div></div>
-          <div class="combo-filter-grid"><select id="comboCategory" class="select"><option value="">Alle Typen</option><option>Character</option><option>Event</option><option>Stage</option></select><input id="comboTrait" class="input" placeholder="Type / Trait"><input id="comboText" class="input combo-text" placeholder="Effekttext filtern: -1 cost, draw, rested …"></div>
+          <div class="combo-filter-grid"><select id="comboCategory" class="select"><option value="">Alle Typen</option><option>Character</option><option>Event</option><option>Stage</option></select><input id="comboTrait" class="input" placeholder="Kartenname / ID / Type"><input id="comboText" class="input combo-text" placeholder="Effekttext filtern: -1 cost, draw, rested …"></div>
           <div id="comboEffects" class="combo-effects"><button class="chip combo-effect" data-combo-effect="on play">On Play</button><button class="chip combo-effect" data-combo-effect="activate main">Activate Main</button><button class="chip combo-effect" data-combo-effect="when attacking">When Attacking</button><button class="chip combo-effect" data-combo-effect="blocker">Blocker</button><button class="chip combo-effect" data-combo-effect="rush">Rush</button><button class="chip combo-effect" data-combo-effect="draw">Draw</button><button class="chip combo-effect" data-combo-effect="search">Search</button><button class="chip combo-effect" data-combo-effect="ko">K.O.</button><button class="chip combo-effect" data-combo-effect="rest">Rest</button><button class="chip combo-effect" data-combo-effect="cost">Cost-Effekt</button></div>
         </div>
       </div>
@@ -602,37 +602,51 @@ function parseSelectorBranch(fragment){
   const requiresTrigger=/\[Trigger\]|with\s+(?:a\s+)?Trigger/i.test(s);
   return {colors,traits,categories,named,max:max?Number(max):null,min:min?Number(min):null,requiresTrigger,raw:s};
 }
-function parseSearchRule(card){
-  const t=cleanEffectString(card.text).replace(/[“”]/g,'"');
-  // Only relationships that actually inspect/search the deck count as searchers.
-  const deckContext=/(?:search your deck|from (?:the )?top of your deck|cards? from (?:the )?top of your deck|look at (?:up to\s+)?\d+ cards? from (?:the )?top of your deck)/i.test(t);
-  const handResult=/(?:add|put)[^.\n]{0,220}(?:to|into) your hand/i.test(t);
-  if(!deckContext||!handResult)return null;
-  let selector='';
+function searchEffectChunks(text){
+  const t=cleanEffectString(text).replace(/[“”]/g,'"');
+  // Keep separate labelled effects apart so a deck-looking effect cannot be combined
+  // with an unrelated Trigger/Trash-to-hand effect elsewhere on the same card.
+  return t.split(/(?=\[(?:On Play|When Attacking|On K\.O\.|On Your Opponent's Attack|Activate:\s*Main|Main|Trigger|End of Your Turn|Start of Your Turn|Start of Your Main Phase|Your Turn|Opponent's Turn)\])/gi).map(x=>x.trim()).filter(Boolean);
+}
+function selectorFromSearchChunk(chunk){
+  const deckContext=/(?:search your deck|from (?:the )?top of your deck|cards? from (?:the )?top of your deck|look at (?:up to\s+)?\d+ cards? from (?:the )?top of your deck)/i.test(chunk);
+  const handResult=/(?:add|put)[^.\n]{0,240}(?:to|into) your hand/i.test(chunk);
+  if(!deckContext||!handResult)return '';
   const patterns=[
-    /reveal up to\s+\d+\s+([^.;\n]+?)(?:\s+and add|\s*,\s*then add|\s+to your hand)/i,
-    /add up to\s+\d+\s+([^.;\n]+?)\s+(?:to|into) your hand/i,
     /search your deck for\s+(?:up to\s+\d+\s+)?([^.;\n]+?)(?:,\s*(?:reveal|then)|\s+and add|\s+(?:to|into) your hand)/i,
-    /look at (?:up to\s+)?\d+ cards? from (?:the )?top of your deck[^.\n]*?[;,]\s*(?:reveal|add) up to\s+\d+\s+([^.;\n]+?)(?:\s+and add|\s+(?:to|into) your hand)/i
+    /look at (?:up to\s+)?\d+ cards? from (?:the )?top of your deck[^.\n]{0,260}?[;,]\s*(?:reveal|add) up to\s+\d+\s+([^.;\n]+?)(?:\s+and add|\s+(?:to|into) your hand)/i,
+    /reveal (?:up to\s+)?\d+ cards? from (?:the )?top of your deck[^.\n]{0,260}?(?:reveal|add) up to\s+\d+\s+([^.;\n]+?)(?:\s+and add|\s+(?:to|into) your hand)/i,
+    /reveal up to\s+\d+\s+([^.;\n]+?)(?:\s+and add|\s*,\s*then add|\s+to your hand)/i,
+    /add up to\s+\d+\s+([^.;\n]+?)\s+(?:to|into) your hand/i
   ];
-  for(const re of patterns){const m=t.match(re);if(m&&m[1]){selector=m[1].trim();break}}
-  if(!selector){
-    // We know it is a deck-to-hand effect, but without a safe selector we do not invent matches.
-    return null;
+  for(const re of patterns){const m=chunk.match(re);if(m&&m[1])return m[1].trim()}
+  return '';
+}
+function parseSearchRule(card){
+  for(const chunk of searchEffectChunks(card.text)){
+    let selector=selectorFromSearchChunk(chunk);if(!selector)continue;
+    const exclusions=[...selector.matchAll(/other than\s+\[([^\]]+)\]/gi)].map(m=>m[1].trim());
+    selector=selector.replace(/other than\s+\[[^\]]+\]/gi,'').trim();
+    let pieces=[selector];
+    if(/\s+or\s+/i.test(selector)&&(/\{[^}]+\}|\[Trigger\]|named\s+\[|card name/i.test(selector))){
+      const p=selector.split(/\s+or\s+/i).map(x=>x.trim()).filter(Boolean);if(p.length<=4)pieces=p;
+    }
+    const full=parseSelectorBranch(selector);
+    const branches=pieces.map(parseSelectorBranch).filter(b=>b.raw);
+    if(!branches.length)continue;
+    // Example: "{Neptunian} or {Fish-Man Island} type Character card".
+    // "Character" applies to both alternatives even though it is written only once at the end.
+    if(branches.length>1){
+      if(full.categories.length===1)for(const b of branches)if(!b.categories.length)b.categories=[...full.categories];
+      if(full.max!=null)for(const b of branches)if(b.max==null)b.max=full.max;
+      if(full.min!=null)for(const b of branches)if(b.min==null)b.min=full.min;
+    }
+    const reason=branches.map(b=>{
+      const bits=[b.colors.length?b.colors.join('/'):'',b.traits.length?`{${b.traits.join(' / ')}}`:'',b.categories.length?b.categories.join('/'):'',b.named.length?`[${b.named.join(' / ')}]`:'',b.max!=null?`cost ≤ ${b.max}`:'',b.min!=null?`cost ≥ ${b.min}`:'',b.requiresTrigger?'Trigger':''].filter(Boolean);return bits.join(' • ')||'beliebige Karte';
+    }).join(' ODER ');
+    return {scope:'deck',branches,exclusions,reason,raw:selector};
   }
-  const exclusions=[...selector.matchAll(/other than\s+\[([^\]]+)\]/gi)].map(m=>m[1].trim());
-  selector=selector.replace(/other than\s+\[[^\]]+\]/gi,'').trim();
-  // Split true alternative selectors (trait/Trigger/named branches). Keep simple "red or green" together.
-  let pieces=[selector];
-  if(/\s+or\s+/i.test(selector)&&(/\{[^}]+\}|\[Trigger\]|named\s+\[|card name/i.test(selector))){
-    const p=selector.split(/\s+or\s+/i).map(x=>x.trim()).filter(Boolean);if(p.length<=4)pieces=p;
-  }
-  const branches=pieces.map(parseSelectorBranch).filter(b=>b.raw);
-  if(!branches.length)return null;
-  const reason=branches.map(b=>{
-    const bits=[b.colors.length?b.colors.join('/'):'',b.traits.length?`{${b.traits.join(' / ')}}`:'',b.categories.length?b.categories.join('/'):'',b.named.length?`[${b.named.join(' / ')}]`:'',b.max!=null?`cost ≤ ${b.max}`:'',b.min!=null?`cost ≥ ${b.min}`:'',b.requiresTrigger?'Trigger':''].filter(Boolean);return bits.join(' • ')||'beliebige Karte';
-  }).join(' ODER ');
-  return {scope:'deck',branches,exclusions,reason,raw:selector};
+  return null;
 }
 function matchesSelectorBranch(target,b){
   if(b.colors.length&&!target.colors.some(c=>b.colors.includes(c)))return false;
@@ -652,6 +666,11 @@ function matchesRule(target,rule){
 
 // --- Lightweight effect engine for combo playability ---
 function effectTextNorm(c){return String(c?.text||'').replace(/[\u2212\u2012\u2013\u2014\uFE63\uFF0D]/g,'-').replace(/[“”]/g,'"').replace(/\s+/g,' ').trim()}
+function labelledEffectSections(c){
+  const t=effectTextNorm(c);if(!t)return [];
+  return t.split(/(?=\[(?:On Play|When Attacking|On K\.O\.|On Your Opponent's Attack|Activate:\s*Main|Main|Trigger|End of Your Turn|Start of Your Turn|Start of Your Main Phase|Your Turn|Opponent's Turn|Rush|Blocker)\])/gi).map(x=>x.trim()).filter(Boolean);
+}
+function onPlayEffectText(c){return labelledEffectSections(c).filter(x=>/^\[On Play\]/i.test(x)).join(' ')}
 function knownBoardCharacters(source){return source&&source.category==='Character'?[source]:[]}
 function conditionStatus(condition,ctx){
   const raw=String(condition||'').trim();const t=effectTextNorm({text:raw});const board=ctx.boardCharacters||[];const L=ctx.leader;
@@ -670,9 +689,9 @@ function conditionStatus(condition,ctx){
   return {known:false,met:false,reason:raw};
 }
 function sourceDonEffect(source,ctx,paidCost){
-  const t=effectTextNorm(source);let ready=0,addActive=0,reasons=[];
-  // Count only on-play style resource recovery from the chosen card.
-  if(/\[On Play\]/i.test(t)){
+  const t=onPlayEffectText(source);let ready=0,addActive=0,reasons=[];
+  // Count only resource recovery inside the source card's actual [On Play] section.
+  if(t){
     for(const m of t.matchAll(/set up to (\d+) of your DON!! cards as active/gi)){const n=Number(m[1]);if(n>ready){ready=n;reasons=[`[On Play] ${n} DON!! wieder aktiv`]}}
     for(const m of t.matchAll(/set (\d+) of your DON!! cards as active/gi)){const n=Number(m[1]);if(n>ready){ready=n;reasons=[`[On Play] ${n} DON!! wieder aktiv`]}}
     for(const m of t.matchAll(/add up to (\d+) cards? from (?:the top of )?your DON!! deck[^.]{0,100}?active/gi)){const n=Number(m[1]);if(n>addActive){addActive=n;reasons.push(`[On Play] bis zu ${n} aktive DON!! aus DON!!-Deck`)}}
@@ -692,8 +711,8 @@ function targetDescriptionMatches(card,desc){
   return true;
 }
 function sourceCostModifier(source,candidate,ctx){
-  const t=effectTextNorm(source);let reduction=0,reasons=[];
-  if(!/\[On Play\]/i.test(t))return {reduction,reasons};
+  const t=onPlayEffectText(source);let reduction=0,reasons=[];
+  if(!t)return {reduction,reasons};
   const regs=[
     /give (?:up to \d+ of )?your ([^.]{1,160}?) cards? in your hand -(\d+) cost/gi,
     /reduce the cost of (?:up to \d+ of )?your ([^.]{1,160}?) cards? in your hand by (\d+)/gi
@@ -712,8 +731,15 @@ function candidateEffectiveCost(card,ctx){
   for(const re of conditionalRegs)for(const m of t.matchAll(re)){
     const st=conditionStatus(m[1],ctx);if(st.known&&st.met){const n=Number(m[2]);if(n>reduction){reduction=n;reasons=[`Eigener Effekt: −${n} Cost (${m[1].trim()})`]}}
   }
-  // Unconditional hand reduction wording.
-  for(const m of t.matchAll(/this card in your hand (?:gets?|gains?|has) -(\d+) cost/gi)){const n=Number(m[1]);if(n>reduction){reduction=n;reasons=[`Eigener Effekt: −${n} Cost`]}}
+  // Truly unconditional hand reduction wording. Do not let this second pass
+  // accidentally ignore an "If ..." condition that the parser could not prove.
+  const handReductionRe=/(?:give )?this card in your hand (?:gets?|gains?|has)?\s*-(\d+) cost/gi;
+  for(const m of t.matchAll(handReductionRe)){
+    const sentenceStart=Math.max(t.lastIndexOf('.',m.index)+1,t.lastIndexOf(';',m.index)+1);
+    const prefix=t.slice(sentenceStart,m.index);
+    if(/\bif\b/i.test(prefix))continue;
+    const n=Number(m[1]);if(n>reduction){reduction=n;reasons=[`Eigener Effekt: −${n} Cost`]}
+  }
   // Alternative fixed play cost when a known condition is met.
   for(const m of t.matchAll(/if ([^.]{1,190}?),? (?:you may )?play this card[^.]{0,80}?for (?:a )?cost of (\d+)/gi)){const st=conditionStatus(m[1],ctx);if(st.known&&st.met){const n=Number(m[2]);if(altCost==null||n<altCost){altCost=n;reasons.push(`Eigener Effekt: spielbar für ${n} Cost`)}}}
   const src=sourceCostModifier(ctx.source,card,ctx);if(src.reduction>0){reduction+=src.reduction;reasons.push(...src.reasons)}
@@ -811,8 +837,11 @@ function renderCombo(){
   const resource=sourceDonEffect(source,ctx,paidCost);const remaining=Math.min(10,baseRemaining+resource.total);
   $('comboDon').textContent=don;$('comboSourceCost').textContent=paidCost;$('comboRefund').textContent=resource.total;$('comboRemaining').textContent=remaining;
   let evaluated=comboPoolCards().filter(c=>c.baseId!==source.baseId).map(c=>({card:c,costInfo:candidateEffectiveCost(c,ctx)})).filter(x=>x.costInfo.effective<=remaining);
-  const cat=$('comboCategory').value,trait=normSearch($('comboTrait').value),textQ=$('comboText').value;
-  if(cat)evaluated=evaluated.filter(x=>x.card.category===cat);if(trait)evaluated=evaluated.filter(x=>x.card.traits.some(t=>normSearch(t).includes(trait)));if(textQ)evaluated=evaluated.filter(x=>smartMatch(x.card.searchText,x.card.textWords,textQ,'flex'));if(state.comboEffects.size)evaluated=evaluated.filter(x=>[...state.comboEffects].every(tag=>effectTagMatches(x.card,tag)));
+  const cat=$('comboCategory').value,cardQ=normSearch($('comboTrait').value),textQ=$('comboText').value;
+  if(cat)evaluated=evaluated.filter(x=>x.card.category===cat);
+  if(cardQ)evaluated=evaluated.filter(x=>normSearch(`${x.card.name} ${x.card.id} ${x.card.traits.join(' ')}`).includes(cardQ));
+  if(textQ)evaluated=evaluated.filter(x=>smartMatch(x.card.searchText,x.card.textWords,textQ,'flex'));
+  if(state.comboEffects.size)evaluated=evaluated.filter(x=>[...state.comboEffects].every(tag=>effectTagMatches(x.card,tag)));
   evaluated.sort((a,b)=>a.costInfo.effective-b.costInfo.effective||(a.card.cost??99)-(b.card.cost??99)||a.card.name.localeCompare(b.card.name));
   $('comboResultCount').textContent=`${evaluated.length} Karten`;
   const refundText=resource.total?` + ${resource.total} durch Effekt`:'';$('comboSummary').textContent=`${state.comboOrder==='first'?'First':'Second'} • Runde ${turn}${turn===6?'+':''}: ${don} DON!! − ${paidCost}${refundText} = ${remaining} effektiv verfügbar${resource.reasons.length?' • '+resource.reasons.join(' / '):''}`;
