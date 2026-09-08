@@ -1,4 +1,4 @@
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OP Synergy Builder v0.7.3</title><style>
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OP Synergy Builder v0.8.0</title><style>
 
   :root{
     --bg:#0a0d12;--panel:#111722;--panel2:#151d2a;--panel3:#0d131d;--line:#263043;
@@ -118,7 +118,9 @@
   .related-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:8px}
   .related-card{background:#0d121b;border:1px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer}.related-card img{width:100%;aspect-ratio:5/7;object-fit:cover}
   .related-card div{padding:7px}.related-card b{font-size:11px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.related-card span{font-size:9px;color:var(--muted)}
-  .relation-note{padding:9px;border:1px solid var(--line);border-radius:9px;background:#0d121b;color:#bcc7d8;font-size:11px;margin-bottom:9px}
+   .relation-note{padding:9px;border:1px solid var(--line);border-radius:9px;background:#0d121b;color:#bcc7d8;font-size:11px;margin-bottom:9px}
+  .relation-kind{display:inline-block;border:1px solid #40506a;border-radius:999px;padding:2px 6px;margin:2px 3px 0 0;font-size:8.5px;font-weight:900;color:#d6deeb;background:#121b28}
+  .parser-audit{font-size:11px;line-height:1.45;color:#c7d1df}.parser-audit b{color:#fff}.parser-audit .audit-good{color:#aaf0c8}.parser-audit .audit-warn{color:#ffd99a}.parser-audit details{margin-top:8px}.parser-audit summary{cursor:pointer;color:#b9c5d7;font-weight:800}.audit-list{margin:7px 0 0;padding-left:18px;color:#9fadc0}.audit-list li{margin:4px 0}.audit-card-id{font-weight:900;color:#dce5f2}
   .empty{padding:24px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:11px}
   .footer{max-width:1900px;margin:0 auto;padding:0 12px 18px;color:#748096;font-size:10px}
   .muted{color:var(--muted)}.hidden{display:none!important}
@@ -198,7 +200,7 @@ body{background:radial-gradient(circle at 50% -20%,#1a2639 0,transparent 36%),va
   <header class="topbar">
     <div class="brand">
       <div class="brand-badge">OP</div>
-      <div><div class="brand-title">Synergy Builder <span class="muted" style="font-weight:650">v0.7.3</span></div><div class="brand-sub">OPTCG Deckbuilding & Combo-Hilfe</div></div>
+      <div><div class="brand-title">Synergy Builder <span class="muted" style="font-weight:650">v0.8.0</span></div><div class="brand-sub">OPTCG Deckbuilding & Combo-Hilfe</div></div>
     </div>
     <div class="top-nav">
       <button id="topCardsNav" class="nav-btn active">Karten</button>
@@ -292,6 +294,7 @@ body{background:radial-gradient(circle at 50% -20%,#1a2639 0,transparent 36%),va
         <div class="analysis-layout">
           <div class="analysis-card"><div class="analysis-title">Effekt-Verteilung</div><div id="effectStats" class="mini-stat-grid"></div></div>
           <div class="analysis-card"><div class="analysis-title">Cost Curve</div><div id="costCurve" class="curve"></div></div>
+          <div class="analysis-card"><div class="analysis-title">Effect-Relationship-Parser</div><div id="parserAudit" class="parser-audit">Kartendaten werden analysiert …</div></div>
         </div>
         <div class="analysis-card" style="margin-top:8px"><div class="analysis-title">Hinweise</div><div id="deckChecks" class="check-list"></div></div>
       </section>
@@ -304,14 +307,14 @@ body{background:radial-gradient(circle at 50% -20%,#1a2639 0,transparent 36%),va
     </div>
 
     <section class="panel deck-section" id="comboSection">
-      <div class="section-head"><div><h2>Combo-Hilfe</h2><p>Berücksichtigt jetzt erkannte DON!!-Rückerstattung und bedingte Hand-Kostenreduktionen aus Kartentexten.</p></div><button id="clearCombo" class="btn tiny ghost">Auswahl löschen</button></div>
+      <div class="section-head"><div><h2>Combo-Hilfe</h2><p>Berücksichtigt erkannte DON!!-/Cost-Effekte und direkte Play-Effekte aus Kartentexten. Beziehungen werden aus der jeweils geladenen Kartendatenbank neu berechnet.</p></div><button id="clearCombo" class="btn tiny ghost">Auswahl löschen</button></div>
       <div class="combo-top">
         <div id="comboSource" class="combo-source"><div class="combo-source-empty">Karte auswählen<br><small>z. B. Birdcage</small></div></div>
         <div>
           <div class="combo-controls"><div class="seg"><button id="comboFirst" class="active">First</button><button id="comboSecond">Second</button></div><select id="comboTurn" class="select" style="width:auto"><option value="1">Runde 1</option><option value="2">Runde 2</option><option value="3">Runde 3</option><option value="4">Runde 4</option><option value="5">Runde 5</option><option value="6">Runde 6+</option></select><select id="comboPool" class="select" style="width:auto"><option value="all">Alle leader-legalen Karten</option><option value="deck">Nur mein Deck</option></select><label class="chip active" style="display:flex;align-items:center;gap:6px"><input id="deductSourceCost" type="checkbox" checked> Kosten der Startkarte abziehen</label></div>
           <div class="combo-budget" style="grid-template-columns:repeat(4,1fr)"><div class="budget-tile"><b id="comboDon">1</b><span>DON!! diese Runde</span></div><div class="budget-tile"><b id="comboSourceCost">0</b><span>Startkarten-Kosten</span></div><div class="budget-tile effect"><b id="comboRefund">0</b><span>durch Effekt wieder aktiv</span></div><div class="budget-tile"><b id="comboRemaining">1</b><span>effektiv verfügbar</span></div></div>
           <div class="combo-filter-grid"><select id="comboCategory" class="select"><option value="">Alle Typen</option><option>Character</option><option>Event</option><option>Stage</option></select><input id="comboCostMin" class="input" inputmode="numeric" placeholder="Cost min"><input id="comboCostMax" class="input" inputmode="numeric" placeholder="Cost max"><input id="comboTrait" class="input combo-name" placeholder="Kartenname / ID / Type"><input id="comboText" class="input combo-text" placeholder="Effekttext filtern: -1 cost, draw, rested …"></div>
-          <div id="comboEffects" class="combo-effects"><button class="chip combo-effect" data-combo-effect="on play">On Play</button><button class="chip combo-effect" data-combo-effect="activate main">Activate Main</button><button class="chip combo-effect" data-combo-effect="when attacking">When Attacking</button><button class="chip combo-effect" data-combo-effect="blocker">Blocker</button><button class="chip combo-effect" data-combo-effect="rush">Rush</button><button class="chip combo-effect" data-combo-effect="draw">Draw</button><button class="chip combo-effect" data-combo-effect="search" title="Zeigt nur Searcher, deren erkannte Suchbedingung die Startkarte wirklich trifft">Sucht Startkarte</button><button class="chip combo-effect" data-combo-effect="ko">K.O.</button><button class="chip combo-effect" data-combo-effect="rest">Rest</button><button class="chip combo-effect" data-combo-effect="cost">Cost-Effekt</button></div>
+          <div id="comboEffects" class="combo-effects"><button class="chip combo-effect" data-combo-effect="on play">On Play</button><button class="chip combo-effect" data-combo-effect="activate main">Activate Main</button><button class="chip combo-effect" data-combo-effect="when attacking">When Attacking</button><button class="chip combo-effect" data-combo-effect="blocker">Blocker</button><button class="chip combo-effect" data-combo-effect="rush">Rush</button><button class="chip combo-effect" data-combo-effect="draw">Draw</button><button class="chip combo-effect" data-combo-effect="search" title="Die Karte kann die Startkarte aus dem Deck suchen">Sucht Startkarte</button><button class="chip combo-effect" data-combo-effect="plays-source" title="Die Karte hat einen erkannten Play-Effekt, der die Startkarte treffen kann">Spielt Startkarte</button><button class="chip combo-effect" data-combo-effect="gets-source" title="Die Karte kann die Startkarte aus Trash/Life/Deck auf die Hand holen">Holt Startkarte</button><button class="chip combo-effect" data-combo-effect="relates-source" title="Irgendeine erkannte eigene Kartenbeziehung trifft die Startkarte">Bezug zur Startkarte</button><button class="chip combo-effect" data-combo-effect="ko">K.O.</button><button class="chip combo-effect" data-combo-effect="rest">Rest</button><button class="chip combo-effect" data-combo-effect="cost">Cost-Effekt</button></div>
         </div>
       </div>
       <div class="results-head"><div><span id="comboResultCount" class="count-badge">0 Karten</span> <span id="comboSummary" class="muted"></span></div></div>
@@ -319,10 +322,10 @@ body{background:radial-gradient(circle at 50% -20%,#1a2639 0,transparent 36%),va
     </section>
   </section>
 
-  <div class="footer">Fan-made prototype. Kartennamen, Regeltexte und Bilder gehören den jeweiligen Rechteinhabern. Combo-Hilfe interpretiert häufige DON!!-/Kosten-Effekte heuristisch und ersetzt keine vollständige Regelauswertung. Bedingungen, die aus dem bekannten Combo-Zustand nicht sicher ableitbar sind, werden nicht automatisch angenommen.</div>
+  <div class="footer">Fan-made prototype. Kartennamen, Regeltexte und Bilder gehören den jeweiligen Rechteinhabern. Effect-Relationship-Parser und Combo-Hilfe interpretieren Kartentexte regelbasiert und werden bei jedem Datenbank-Load neu aufgebaut. Nicht eindeutig verstandene Formulierungen werden im Parser-Audit markiert; die App ersetzt keine offizielle Regelauslegung.</div>
 </div>
 
-<dialog id="cardDialog"><div class="modal-grid"><div class="modal-left"><div id="modalImage"></div><div class="modal-extra-actions"><button id="modalAdd" class="btn primary">Add to deck</button><button id="modalLeader" class="btn">Als Leader setzen</button><button id="modalCombo" class="btn">Combo-Hilfe mit dieser Karte</button></div></div><div class="modal-main"><div class="modal-top"><div><div id="modalTitle" class="modal-title"></div><div id="modalMeta" class="muted"></div></div><button id="closeDialog" class="btn tiny">✕</button></div><div id="modalText" class="modal-text"></div><div id="relationNote" class="relation-note"></div><div class="tabs"><button class="btn tab active" data-tab="targets">Kann suchen</button><button class="btn tab" data-tab="searchedBy">Gesucht von</button><button class="btn tab" data-tab="sameTrait">Gleicher Type</button></div><div class="related-filters"><div class="related-color-wrap"><div class="field-label">Farben</div><div id="relatedColorChips" class="related-color-chips"><button type="button" class="chip active" data-related-color="">Alle</button><button type="button" class="chip" data-related-color="Red">Red</button><button type="button" class="chip" data-related-color="Green">Green</button><button type="button" class="chip" data-related-color="Blue">Blue</button><button type="button" class="chip" data-related-color="Purple">Purple</button><button type="button" class="chip" data-related-color="Black">Black</button><button type="button" class="chip" data-related-color="Yellow">Yellow</button></div></div><div><div class="field-label">Type / Trait</div><input id="relatedTrait" class="input" placeholder="Verwandte Karten nach Type / Trait filtern"></div></div><div id="relatedGrid" class="related-grid"></div><div id="relatedEmpty" class="empty hidden">Keine verwandten Karten in dieser Ansicht.</div></div></div></dialog>
+<dialog id="cardDialog"><div class="modal-grid"><div class="modal-left"><div id="modalImage"></div><div class="modal-extra-actions"><button id="modalAdd" class="btn primary">Add to deck</button><button id="modalLeader" class="btn">Als Leader setzen</button><button id="modalCombo" class="btn">Combo-Hilfe mit dieser Karte</button></div></div><div class="modal-main"><div class="modal-top"><div><div id="modalTitle" class="modal-title"></div><div id="modalMeta" class="muted"></div></div><button id="closeDialog" class="btn tiny">✕</button></div><div id="modalText" class="modal-text"></div><div id="relationNote" class="relation-note"></div><div class="tabs"><button class="btn tab active" data-tab="relationsOut">Alle Beziehungen</button><button class="btn tab" data-tab="relationsIn">Bezogen von</button><button class="btn tab" data-tab="targets">Kann suchen</button><button class="btn tab" data-tab="searchedBy">Gesucht von</button><button class="btn tab" data-tab="sameTrait">Gleicher Type</button></div><div class="related-filters"><div class="related-color-wrap"><div class="field-label">Farben</div><div id="relatedColorChips" class="related-color-chips"><button type="button" class="chip active" data-related-color="">Alle</button><button type="button" class="chip" data-related-color="Red">Red</button><button type="button" class="chip" data-related-color="Green">Green</button><button type="button" class="chip" data-related-color="Blue">Blue</button><button type="button" class="chip" data-related-color="Purple">Purple</button><button type="button" class="chip" data-related-color="Black">Black</button><button type="button" class="chip" data-related-color="Yellow">Yellow</button></div></div><div><div class="field-label">Type / Trait</div><input id="relatedTrait" class="input" placeholder="Name / ID / Type / Trait filtern"></div></div><div id="relatedGrid" class="related-grid"></div><div id="relatedEmpty" class="empty hidden">Keine verwandten Karten in dieser Ansicht.</div></div></div></dialog>
 
 <dialog id="deckTransferDialog" class="transfer-dialog"><div class="transfer-wrap"><div class="modal-top"><div><div id="transferTitle" class="modal-title" style="font-size:22px">Deck sichern</div><div id="transferSubtitle" class="muted" style="font-size:12px;margin-top:4px">Diesen Text kannst du überall speichern und später wieder einfügen.</div></div><button id="closeTransfer" class="btn tiny">✕</button></div><textarea id="deckTransferText" class="transfer-textarea" spellcheck="false" placeholder="Decktext hier einfügen …"></textarea><div id="exportTransferActions" class="transfer-buttons"><button id="copyDeckText" class="btn primary">Text kopieren</button><button id="downloadDeckText" class="btn">Als .txt herunterladen</button></div><div id="importTransferActions" class="transfer-buttons hidden"><button id="applyDeckText" class="btn primary">Deck aus Text laden</button></div><div id="transferStatus" class="transfer-status"></div></div></dialog>
 <script id="embeddedCatalog" type="application/json">[]</script>
@@ -348,7 +351,7 @@ const DEMO=[
  {card_set_id:'OP03-024',card_name:'Gin',card_color:'Green',card_type:'Character',card_cost:'4',card_power:'5000',counter_amount:'1000',attribute:'Strike',sub_types:'East Blue/Krieg Pirates',rarity:'Rare',set_name:'Pillars of Strength',card_text:'[On Play] If your Leader has the {East Blue} type, rest up to 2 of your opponent’s Characters with a cost of 4 or less.',card_image:'https://en.onepiece-cardgame.com/images/cardlist/card/OP03-024.png'}
 ,
  {card_set_id:'OP05-040',card_name:'Birdcage',card_color:'Green',card_type:'Stage',card_cost:'5',counter_amount:'0',sub_types:'Donquixote Pirates',rarity:'Common',set_name:'Awakening of the New Era',card_text:'If your Leader is [Donquixote Doflamingo], all Characters with a cost of 5 or less do not become active in your and your opponent\'s Refresh Phases.\n[End of Your Turn] If you have 10 DON!! cards on your field, K.O. all rested Characters with a cost of 5 or less. Then, trash this Stage.',card_image:'https://en.onepiece-cardgame.com/images/cardlist/card/OP05-040.png'}];
-const state={cards:[],filtered:[],selected:null,relatedTab:'targets',deck:{leader:null,cards:{}},colors:new Set(),categories:new Set(),relatedColors:new Set(),flags:new Set(),effectTags:new Set(),source:'',searchRules:new Map(),view:'cards',playOrder:'first',turnMode:'new',comboSource:null,comboOrder:'first',comboEffects:new Set(),comboPage:1,comboPageSize:100};
+const state={cards:[],filtered:[],selected:null,relatedTab:'relationsOut',deck:{leader:null,cards:{}},colors:new Set(),categories:new Set(),relatedColors:new Set(),flags:new Set(),effectTags:new Set(),source:'',searchRules:new Map(),relationshipRules:new Map(),relationshipAudit:{cardsWithText:0,cardsWithRelations:0,rules:0,relationLikeClauses:0,parsedRelationLikeClauses:0,unknown:[]},view:'cards',playOrder:'first',turnMode:'new',comboSource:null,comboOrder:'first',comboEffects:new Set(),comboPage:1,comboPageSize:100};
 const $=id=>document.getElementById(id);
 const num=v=>{const s=String(v??'').trim();if(!s)return null;const m=s.match(/-?\d+/);if(!m)return null;const n=Number(m[0]);return Number.isFinite(n)?n:null};
 const escapeHtml=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -424,7 +427,7 @@ function smartMatch(norm,words,q,mode='flex'){
   return true;
 }
 function effectTagMatches(c,tag){
-  if(tag==='search')return state.searchRules.has(c.id)||/look at\s+\d+\s+cards?|search your deck|reveal up to\s+\d+/i.test(c.text);
+  if(tag==='search')return state.searchRules.has(c.id);
   if(tag==='ko')return /\bk\.?o\.?\b/i.test(c.text);
   if(tag==='rest')return /\brest(?:ed|ing)?\b/i.test(c.text);
   if(tag==='cost')return /\bcost\b/i.test(c.text);
@@ -586,21 +589,34 @@ async function loadData(){
     setStatus(`${state.cards.length.toLocaleString()} card records loaded • ready${state.catalogUrl?` • ${state.catalogUrl.includes('one-piece-card-game-json')?'current npm catalog':'fallback source'}`:''}${namiLeaderCount?` • ${namiLeaderCount} Nami leader(s) found`:''}`);
   }catch(e){console.warn('Full catalog unavailable',e);setStatus(`${state.cards.length} built-in cards available • full catalog could not load in this viewer`);}
 }
-function buildSearchRules(){state.searchRules.clear();for(const c of state.cards){const rule=parseSearchRule(c);if(rule)state.searchRules.set(c.id,rule)}}
+function buildSearchRules(){state.searchRules.clear();for(const c of state.cards){const rule=parseSearchRule(c);if(rule)state.searchRules.set(c.id,rule)}buildRelationshipRules();renderParserAudit()}
 function parseSelectorBranch(fragment){
   const s=String(fragment||'').replace(/\s+/g,' ').trim();
-  // Color words inside a trait/name (e.g. {East Blue} or [Red-Haired ...]) are not color restrictions.
+  // Words inside {Traits} and [Names] must not be mistaken for structural colors/categories.
   const structural=s.replace(/\{[^}]+\}/g,' ').replace(/\[[^\]]+\]/g,' ').replace(/type including\s+["“][^"”]+["”]/gi,' ');
   const colors=COLORS.filter(c=>new RegExp(`\\b${c}\\b`,'i').test(structural));
-  const traits=[...new Set([...s.matchAll(/\{([^}]+)\}/g)].map(m=>m[1].trim()).concat([...s.matchAll(/type including\s+["“]([^"”]+)["”]/gi)].map(m=>m[1].trim())).filter(Boolean))];
-  const categories=CARD_CATEGORIES.filter(cat=>new RegExp(`\\b${cat}\\b(?=\\s+(?:card|cards|type))`,'i').test(s));
-  const named=[...s.matchAll(/(?:named|card name (?:of|is))\s+\[([^\]]+)\]/gi)].map(m=>m[1].trim());
-  // A bare [Name] in a selector is usually a named-card restriction; ignore keyword labels.
-  for(const m of s.matchAll(/\[([^\]]+)\]/g)){const n=m[1].trim();if(!/^(Trigger|Blocker|Rush|On Play|When Attacking|Activate: Main|Counter)$/i.test(n)&&!named.some(x=>x.toLowerCase()===n.toLowerCase()))named.push(n)}
-  const max=(s.match(/cost(?:\s+of)?\s+(\d+)\s+or less/i)||[])[1];
-  const min=(s.match(/cost(?:\s+of)?\s+(\d+)\s+or more/i)||[])[1];
+  const traits=[...new Set([
+    ...[...s.matchAll(/\{([^}]+)\}/g)].map(m=>m[1].trim()),
+    ...[...s.matchAll(/type including\s+["“]([^"”]+)["”]/gi)].map(m=>m[1].trim())
+  ].filter(Boolean))];
+  const categories=CARD_CATEGORIES.filter(cat=>new RegExp(`\\b${cat}s?\\b`,'i').test(structural));
+  const keywordLabels=/^(Trigger|Blocker|Rush|On Play|When Attacking|On K\.?O\.?|Activate:\s*Main|Main|Counter|Your Turn|Opponent's Turn|Once Per Turn|End of Your Turn|Start of Your Turn|Start of Your Main Phase|On Your Opponent's Attack|DON!!\s*x\d+)$/i;
+  const named=[];
+  for(const m of s.matchAll(/(?:named|card name (?:of|is))\s+\[([^\]]+)\]/gi)){const n=m[1].trim();if(n&&!named.some(x=>normSearch(x)===normSearch(n)))named.push(n)}
+  for(const m of s.matchAll(/\[([^\]]+)\]/g)){const n=m[1].trim();if(n&&!keywordLabels.test(n)&&!named.some(x=>normSearch(x)===normSearch(n)))named.push(n)}
+  const nameIncludes=[...new Set([...s.matchAll(/(?:card )?name including\s+[\"“]([^\"”]+)[\"”]/gi)].map(m=>m[1].trim()).filter(Boolean))];
+  const idIncludes=[...new Set([...s.matchAll(/card number including\s+[\"“']([^\"”']+)[\"”']/gi)].map(m=>m[1].trim().toUpperCase()).filter(Boolean))];
+  const costMax=(s.match(/(?:base\s+)?cost(?:\s+of)?\s+(\d+)\s+or less/i)||s.match(/(?:base\s+)?cost(?:\s+of)?\s+up to\s+(\d+)/i)||[])[1];
+  const costMin=(s.match(/(?:base\s+)?cost(?:\s+of)?\s+(\d+)\s+or more/i)||[])[1];
+  let costExact=null;if(costMax==null&&costMin==null){const m=s.match(/(?:with\s+(?:a\s+)?|whose\s+)?(?:base\s+)?cost(?:\s+of)?\s+(\d+)(?!\s+(?:or|and))/i);if(m)costExact=Number(m[1])}
+  const powerMax=(s.match(/power(?:\s+of)?\s+(\d+)\s+or less/i)||s.match(/(\d+)\s+power\s+or less/i)||s.match(/(\d+)\s+or less\s+power/i)||[])[1];
+  const powerMin=(s.match(/power(?:\s+of)?\s+(\d+)\s+or more/i)||s.match(/(\d+)\s+power\s+or more/i)||s.match(/(\d+)\s+or more\s+power/i)||[])[1];
+  let powerExact=null;if(powerMax==null&&powerMin==null){const m=s.match(/(?:with\s+(?:a\s+)?|whose\s+)?power(?:\s+of)?\s+(\d+)(?!\s+(?:or|and))/i)||s.match(/(?:with\s+)?(\d+)\s+power(?!\s+(?:or|and))/i);if(m)powerExact=Number(m[1])}
+  const counterMax=(s.match(/counter(?:\s+of)?\s+\+?(\d+)\s+or less/i)||s.match(/\+?(\d+)\s+counter\s+or less/i)||[])[1];
+  const counterMin=(s.match(/counter(?:\s+of)?\s+\+?(\d+)\s+or more/i)||s.match(/\+?(\d+)\s+counter\s+or more/i)||[])[1];
+  const attributes=[...new Set([...s.matchAll(/\b(Slash|Strike|Special|Wisdom|Ranged)\s+attribute/gi)].map(m=>m[1][0].toUpperCase()+m[1].slice(1).toLowerCase()))];
   const requiresTrigger=/\[Trigger\]|with\s+(?:a\s+)?Trigger/i.test(s);
-  return {colors,traits,categories,named,max:max?Number(max):null,min:min?Number(min):null,requiresTrigger,raw:s};
+  return {colors,traits,categories,named,nameIncludes,idIncludes,max:costMax?Number(costMax):null,min:costMin?Number(costMin):null,costExact,powerMax:powerMax?Number(powerMax):null,powerMin:powerMin?Number(powerMin):null,powerExact,counterMax:counterMax?Number(counterMax):null,counterMin:counterMin?Number(counterMin):null,attributes,requiresTrigger,raw:s};
 }
 function searchEffectChunks(text){
   const t=cleanEffectString(text).replace(/[“”]/g,'"');
@@ -610,52 +626,67 @@ function searchEffectChunks(text){
 }
 function selectorFromSearchChunk(chunk){
   const deckContext=/(?:search your deck|from (?:the )?top of your deck|cards? from (?:the )?top of your deck|look at (?:up to\s+)?\d+ cards? from (?:the )?top of your deck)/i.test(chunk);
-  const handResult=/(?:add|put)[^.\n]{0,240}(?:to|into) your hand/i.test(chunk);
+  const handResult=/(?:add|put)[^.\n]{0,300}(?:to|into) your hand/i.test(chunk);
   if(!deckContext||!handResult)return '';
+  // Do not use "[^.]" for selectors: legal card names such as [Tony Tony.Chopper]
+  // contain periods. The terminating action phrase is a safer boundary.
   const patterns=[
-    /search your deck for\s+(?:up to\s+\d+\s+)?([^.;\n]+?)(?:,\s*(?:reveal|then)|\s+and add|\s+(?:to|into) your hand)/i,
-    /look at (?:up to\s+)?\d+ cards? from (?:the )?top of your deck[^.\n]{0,260}?[;,]\s*(?:reveal|add) up to\s+\d+\s+([^.;\n]+?)(?:\s+and add|\s+(?:to|into) your hand)/i,
-    /reveal (?:up to\s+)?\d+ cards? from (?:the )?top of your deck[^.\n]{0,260}?(?:reveal|add) up to\s+\d+\s+([^.;\n]+?)(?:\s+and add|\s+(?:to|into) your hand)/i,
-    /reveal up to\s+\d+\s+([^.;\n]+?)(?:\s+and add|\s*,\s*then add|\s+to your hand)/i,
-    /add up to\s+\d+\s+([^.;\n]+?)\s+(?:to|into) your hand/i
+    /search your deck for\s+(?:up to\s+\d+\s+)?(.{1,260}?)(?=,\s*(?:reveal|then)|\s+and add|\s+(?:to|into) your hand)/i,
+    /look at (?:up to\s+)?\d+ cards? from (?:the )?top of your deck.{0,300}?[;,]\s*(?:reveal|add) up to\s+\d+\s+(.{1,260}?)(?=\s+and add|\s+(?:to|into) your hand)/i,
+    /reveal (?:up to\s+)?\d+ cards? from (?:the )?top of your deck.{0,300}?(?:reveal|add) up to\s+\d+\s+(.{1,260}?)(?=\s+and add|\s+(?:to|into) your hand)/i,
+    /reveal up to\s+\d+\s+(.{1,260}?)(?=\s+and add|\s*,\s*then add|\s+to your hand)/i,
+    /add up to\s+\d+\s+(.{1,260}?)\s+(?:to|into) your hand/i
   ];
   for(const re of patterns){const m=chunk.match(re);if(m&&m[1])return m[1].trim()}
   return '';
 }
-function parseSearchRule(card){
+function parseSearchRules(card){
+  const rules=[];
   for(const chunk of searchEffectChunks(card.text)){
     let selector=selectorFromSearchChunk(chunk);if(!selector)continue;
     const exclusions=[...selector.matchAll(/other than\s+\[([^\]]+)\]/gi)].map(m=>m[1].trim());
     selector=selector.replace(/other than\s+\[[^\]]+\]/gi,'').trim();
     let pieces=[selector];
     if(/\s+or\s+/i.test(selector)&&(/\{[^}]+\}|\[Trigger\]|named\s+\[|card name/i.test(selector))){
-      const p=selector.split(/\s+or\s+/i).map(x=>x.trim()).filter(Boolean);if(p.length<=4)pieces=p;
+      const p=selector.split(/\s+or\s+(?!less\b|more\b)/i).map(x=>x.trim()).filter(Boolean);if(p.length<=5)pieces=p;
     }
     const full=parseSelectorBranch(selector);
     const branches=pieces.map(parseSelectorBranch).filter(b=>b.raw);
     if(!branches.length)continue;
-    // Example: "{Neptunian} or {Fish-Man Island} type Character card".
-    // "Character" applies to both alternatives even though it is written only once at the end.
     if(branches.length>1){
       if(full.categories.length===1)for(const b of branches)if(!b.categories.length)b.categories=[...full.categories];
       if(full.max!=null)for(const b of branches)if(b.max==null)b.max=full.max;
       if(full.min!=null)for(const b of branches)if(b.min==null)b.min=full.min;
+      if(full.costExact!=null)for(const b of branches)if(b.costExact==null)b.costExact=full.costExact;
+      if(full.powerMax!=null)for(const b of branches)if(b.powerMax==null)b.powerMax=full.powerMax;
+      if(full.powerMin!=null)for(const b of branches)if(b.powerMin==null)b.powerMin=full.powerMin;
+      if(full.requiresTrigger)for(const b of branches)b.requiresTrigger=true;
     }
-    const reason=branches.map(b=>{
-      const bits=[b.colors.length?b.colors.join('/'):'',b.traits.length?`{${b.traits.join(' / ')}}`:'',b.categories.length?b.categories.join('/'):'',b.named.length?`[${b.named.join(' / ')}]`:'',b.max!=null?`cost ≤ ${b.max}`:'',b.min!=null?`cost ≥ ${b.min}`:'',b.requiresTrigger?'Trigger':''].filter(Boolean);return bits.join(' • ')||'beliebige Karte';
-    }).join(' ODER ');
-    return {scope:'deck',branches,exclusions,reason,raw:selector};
+    const reason=branches.map(selectorReason).join(' ODER ');
+    const rule={scope:'deck',branches,exclusions,reason,raw:selector};
+    const sig=JSON.stringify([branches.map(selectorReason),exclusions]);if(!rules.some(r=>r._sig===sig)){rule._sig=sig;rules.push(rule)}
   }
-  return null;
+  return rules;
 }
+function parseSearchRule(card){return parseSearchRules(card)[0]||null}
+
 function matchesSelectorBranch(target,b){
   if(b.colors.length&&!target.colors.some(c=>b.colors.includes(c)))return false;
   if(b.traits.length&&!b.traits.some(tr=>target.traits.some(x=>normSearch(x)===normSearch(tr)||normSearch(x).includes(normSearch(tr)))))return false;
   if(b.categories.length&&!b.categories.includes(target.category))return false;
   if(b.max!=null&&(target.cost==null||target.cost>b.max))return false;
   if(b.min!=null&&(target.cost==null||target.cost<b.min))return false;
+  if(b.costExact!=null&&(target.cost==null||target.cost!==b.costExact))return false;
+  if(b.powerMax!=null&&(target.power==null||target.power>b.powerMax))return false;
+  if(b.powerMin!=null&&(target.power==null||target.power<b.powerMin))return false;
+  if(b.powerExact!=null&&(target.power==null||target.power!==b.powerExact))return false;
+  if(b.counterMax!=null&&(target.counter==null||target.counter>b.counterMax))return false;
+  if(b.counterMin!=null&&(target.counter==null||target.counter<b.counterMin))return false;
+  if(b.attributes?.length&&!b.attributes.some(a=>normSearch(a)===normSearch(target.attribute)))return false;
   if(b.requiresTrigger&&!target.hasTrigger)return false;
   if(b.named.length&&!b.named.some(n=>normSearch(target.name)===normSearch(n)))return false;
+  if(b.nameIncludes?.length&&!b.nameIncludes.some(n=>normSearch(target.name).includes(normSearch(n))))return false;
+  if(b.idIncludes?.length&&!b.idIncludes.some(n=>String(target.id||target.baseId||'').toUpperCase().includes(String(n).toUpperCase())))return false;
   return true;
 }
 function matchesRule(target,rule){
@@ -665,8 +696,168 @@ function matchesRule(target,rule){
 }
 function searcherCanFindTarget(searcher,target){
   if(!searcher||!target)return false;
-  const rule=state.searchRules.get(searcher.id);
-  return !!rule&&matchesRule(target,rule);
+  const rels=state.relationshipRules?.get(searcher.id)?.filter(r=>r.kind==='SEARCH')||[];
+  if(rels.length)return rels.some(r=>relationMatchesTarget(target,r));
+  return parseSearchRules(searcher).some(r=>matchesRule(target,r));
+}
+
+// --- General relationship engine -------------------------------------------------
+// The engine intentionally stores selector rules (name/type/color/category/cost/...)
+// instead of hard-coding target card IDs. New cards that satisfy an old selector are
+// therefore picked up automatically after the catalog reloads.
+const RELATION_LABELS={
+  SEARCH:'Sucht aus Deck',PLAY:'Spielt Karte',ADD_HAND:'Auf die Hand',REQUIRE:'Bedingung',READY:'Aktiviert',BUFF:'Buff',
+  COST_REDUCE:'Cost-Reduktion',REST_OWN:'Restet eigene Karte',RETURN_OWN:'Zurück auf Hand',KO_OWN:'K.O. eigene Karte',
+  TRASH_OWN:'Trash eigene Karte',MOVE:'Verschiebt Karte',MENTION:'Expliziter Bezug',
+  OPP_KO:'K.O.-Ziel (Gegner)',OPP_REST:'Rest-Ziel (Gegner)',OPP_RETURN:'Bounce-Ziel (Gegner)',OPP_DEBUFF:'Debuff-Ziel (Gegner)',GLOBAL_KO:'K.O.-Ziel',GLOBAL_RESTRICT:'Globale Einschränkung'
+};
+function relationLabel(kind){return RELATION_LABELS[kind]||kind}
+function normalizeZone(z){const n=normSearch(z);if(n.includes('trash'))return 'TRASH';if(n.includes('life'))return 'LIFE';if(n.includes('deck'))return 'DECK';if(n.includes('hand'))return 'HAND';if(n.includes('field'))return 'FIELD';return 'UNSPECIFIED'}
+function selectorReason(b){
+  const bits=[b.colors?.length?b.colors.join('/'):'',b.traits?.length?`{${b.traits.join(' / ')}}`:'',b.categories?.length?b.categories.join('/'):'',b.named?.length?`[${b.named.join(' / ')}]`:'',b.nameIncludes?.length?`Name enthält ${b.nameIncludes.join('/')}`:'',b.idIncludes?.length?`ID enthält ${b.idIncludes.join('/')}`:'',b.max!=null?`Cost ≤ ${b.max}`:'',b.min!=null?`Cost ≥ ${b.min}`:'',b.costExact!=null?`Cost = ${b.costExact}`:'',b.powerMax!=null?`Power ≤ ${b.powerMax}`:'',b.powerMin!=null?`Power ≥ ${b.powerMin}`:'',b.powerExact!=null?`Power = ${b.powerExact}`:'',b.counterMax!=null?`Counter ≤ ${b.counterMax}`:'',b.counterMin!=null?`Counter ≥ ${b.counterMin}`:'',b.attributes?.length?`${b.attributes.join('/')} Attribute`:'',b.requiresTrigger?'Trigger':''].filter(Boolean);
+  return bits.join(' • ')||'beliebige Karte';
+}
+function selectorHasSignal(b,raw,allowBroad=true){
+  if(b.colors?.length||b.traits?.length||b.categories?.length||b.named?.length||b.nameIncludes?.length||b.idIncludes?.length||b.max!=null||b.min!=null||b.costExact!=null||b.powerMax!=null||b.powerMin!=null||b.powerExact!=null||b.counterMax!=null||b.counterMin!=null||b.attributes?.length||b.requiresTrigger)return true;
+  return allowBroad&&/^\s*(?:card|cards|a card|any card)\s*$/i.test(String(raw||'').replace(/\btype\b/gi,'').trim());
+}
+function genericSelectorRule(selector,{allowBroad=true}={}){
+  let raw=String(selector||'').replace(/\s+/g,' ').trim();
+  raw=raw.replace(/^(?:of\s+)?your\s+/i,'').replace(/^(?:a|an)\s+/i,'').replace(/^one\s+/i,'').trim();
+  const exclusions=[...raw.matchAll(/(?:other than|excluding)\s+\[([^\]]+)\]/gi)].map(m=>m[1].trim());
+  raw=raw.replace(/(?:other than|excluding)\s+\[[^\]]+\]/gi,'').trim();
+  let pieces=[raw];
+  if(/\s+or\s+/i.test(raw)&&(/\{[^}]+\}|\[[^\]]+\]|\b(?:Leader|Character|Event|Stage)s?\b/i.test(raw))){
+    const p=raw.split(/\s+or\s+(?!less\b|more\b)/i).map(x=>x.trim()).filter(Boolean);if(p.length>1&&p.length<=5)pieces=p;
+  }
+  const full=parseSelectorBranch(raw);const branches=pieces.map(parseSelectorBranch).filter(b=>b.raw);
+  if(branches.length>1){
+    const shared=['categories','colors','attributes'];for(const key of shared)if(full[key]?.length===1)for(const b of branches)if(!b[key]?.length)b[key]=[...full[key]];
+    for(const key of ['max','min','costExact','powerMax','powerMin','powerExact','counterMax','counterMin'])if(full[key]!=null)for(const b of branches)if(b[key]==null)b[key]=full[key];
+    if(full.requiresTrigger)for(const b of branches)b.requiresTrigger=true;
+  }
+  const usable=branches.filter(b=>selectorHasSignal(b,b.raw,allowBroad));
+  if(!usable.length)return null;
+  return {branches:usable,exclusions,reason:usable.map(selectorReason).join(' ODER '),raw};
+}
+function relationMatchesTarget(target,rel){
+  if(!target||!rel?.branches?.length)return false;
+  if(rel.exclusions?.some(n=>normSearch(target.name)===normSearch(n)))return false;
+  return rel.branches.some(b=>matchesSelectorBranch(target,b));
+}
+function relationRule(kind,selector,meta={}){
+  const sr=genericSelectorRule(selector,{allowBroad:meta.allowBroad!==false});if(!sr)return null;
+  return {kind,...sr,timing:meta.timing||'',sourceZone:meta.sourceZone||'UNSPECIFIED',targetZone:meta.targetZone||'',condition:meta.condition||'',evidence:meta.evidence||'',comboSafe:meta.comboSafe!==false,donCost:meta.donCost||0};
+}
+function timingFromSection(section){
+  for(const x of ['On Play','When Attacking','On K.O.','Activate: Main','Trigger','End of Your Turn','Start of Your Turn','Start of Your Main Phase','Your Turn','Opponent\'s Turn'])if(new RegExp(`\\[${x.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')}\\]`,'i').test(section))return x;
+  return '';
+}
+function nearbyCondition(text,index){
+  const before=String(text||'').slice(Math.max(0,Math.max(text.lastIndexOf('.',index-1),text.lastIndexOf(';',index-1),text.lastIndexOf(':',index-1))+1),index);
+  const m=before.match(/\bif\s+(.{1,190}?)(?:,\s*(?:then\s*)?)?$/i);return m?m[1].trim():'';
+}
+function sectionDonActivationCost(section,index){
+  const before=String(section||'').slice(0,index);let m=before.match(/(?:you may\s+)?rest\s+(\d+)\s+(?:of your\s+)?DON!! cards?/i);if(m)return Number(m[1]);
+  m=before.match(/DON!!\s*-\s*(\d+)/i);if(m)return null; // DON!!-X changes field resources; do not auto-resolve as a free play.
+  return 0;
+}
+function addUniqueRelation(out,rel){if(!rel)return;const sig=[rel.kind,rel.timing,rel.sourceZone,rel.targetZone,rel.reason,rel.condition].join('|');if(!out.some(x=>x._sig===sig)){rel._sig=sig;out.push(rel)}}
+function nonKeywordBracketNames(text){
+  const bad=/^(Trigger|Blocker|Rush|On Play|When Attacking|On K\.?O\.?|Activate:\s*Main|Main|Counter|Your Turn|Opponent's Turn|Once Per Turn|End of Your Turn|Start of Your Turn|Start of Your Main Phase|On Your Opponent's Attack|DON!!\s*x\d+)$/i;
+  return [...new Set([...String(text||'').matchAll(/\[([^\]]+)\]/g)].map(m=>m[1].trim()).filter(n=>n&&!bad.test(n)))];
+}
+function parseRelationships(card){
+  const out=[];
+  for(const search of parseSearchRules(card))addUniqueRelation(out,{kind:'SEARCH',branches:search.branches,exclusions:search.exclusions||[],reason:search.reason,raw:search.raw,timing:'',sourceZone:'DECK',targetZone:'HAND',condition:'',evidence:search.raw,comboSafe:true,donCost:0});
+  for(const section of labelledEffectSections(card)){
+    const timing=timingFromSection(section);
+    let m;
+    // Direct play effects. The selector remains dynamic, so future matching cards are included automatically.
+    const playRe=/\bplay\s+(?:up to\s+)?(?:(?:\d+|one)\s+)?(.{1,220}?)(?:\s+from\s+(?:(?:the\s+(?:top|bottom)\s+of\s+)?(?:your\s+)?)?(hand|trash|life(?: cards?)?|deck)|(?=[.;]|$))/gi;
+    while((m=playRe.exec(section))){let sel=m[1].trim();if(/\bopponent(?:'s|s')\b/i.test(sel)||/^(?:this|that) card\b/i.test(sel)||/^(?:it|them)\b/i.test(sel))continue;const dc=sectionDonActivationCost(section,m.index);addUniqueRelation(out,relationRule('PLAY',sel,{timing,sourceZone:normalizeZone(m[2]||''),condition:nearbyCondition(section,m.index),evidence:m[0],comboSafe:dc!==null,donCost:dc||0}))}
+    const namedPlayRe=/\bplay\s+(?:up to\s+)?(?:(?:\d+|one)\s+)?\[([^\]]+)\](?:\s+from\s+(?:your\s+)?(hand|trash|life(?: cards?)?|deck))?/gi;
+    while((m=namedPlayRe.exec(section))){const dc=sectionDonActivationCost(section,m.index);addUniqueRelation(out,relationRule('PLAY',`[${m[1]}]`,{timing,sourceZone:normalizeZone(m[2]||''),condition:nearbyCondition(section,m.index),evidence:m[0],comboSafe:dc!==null,donCost:dc||0}))}
+    // Pull a specifically described card from Trash/Life/Deck into hand.
+    const addRe=/\b(?:add|return)\s+(?:up to\s+)?(?:(?:\d+|one)\s+)?(.{1,220}?)\s+from\s+(?:(?:the\s+(?:top|bottom)\s+of\s+)?your\s+)?(trash|life(?: cards?)?|deck)\s+(?:to|into)\s+your hand/gi;
+    while((m=addRe.exec(section))){const sel=m[1].trim();if(/^(?:it|that card|them)\b/i.test(sel))continue;addUniqueRelation(out,relationRule('ADD_HAND',sel,{timing,sourceZone:normalizeZone(m[2]),targetZone:'HAND',condition:nearbyCondition(section,m.index),evidence:m[0]}))}
+    // Own-card targeting effects that create deck-building relationships.
+    const ownPatterns=[
+      ['READY',/\bset\s+(?:up to\s+)?(?:\d+|one)\s+of your\s+(.{1,180}?)\s+as active/gi],
+      ['BUFF',/\bgive\s+(?:up to\s+)?(?:\d+|one)\s+of your\s+(.{1,180}?)\s+\+\d+\s+power/gi],
+      ['REST_OWN',/\brest\s+(?:up to\s+)?(?:\d+|one)\s+of your\s+(.{1,180}?)(?=[.;]|$)/gi],
+      ['RETURN_OWN',/\breturn\s+(?:up to\s+)?(?:\d+|one)\s+of your\s+(.{1,180}?)\s+to\s+(?:the\s+)?(?:owner'?s|your)\s+hand/gi],
+      ['KO_OWN',/\bK\.?O\.?\s+(?:up to\s+)?(?:\d+|one)\s+of your\s+(.{1,180}?)(?=[.;]|$)/gi],
+      ['TRASH_OWN',/\btrash\s+(?:up to\s+)?(?:\d+|one)\s+of your\s+(.{1,180}?)(?=[.;]|$)/gi],
+      ['COST_REDUCE',/\b(?:give|reduce the cost of)\s+(?:up to\s+)?(?:\d+|one)?\s*(?:of\s+)?your\s+(.{1,180}?)\s+(?:cards?\s+)?(?:in your hand\s+)?(?:by\s+)?-?\d+\s+cost/gi]
+    ];
+    for(const [kind,re] of ownPatterns)while((m=re.exec(section))){if(/\bopponent/i.test(m[1]))continue;addUniqueRelation(out,relationRule(kind,m[1],{timing,sourceZone:'FIELD',condition:nearbyCondition(section,m.index),evidence:m[0]}))}
+    // Opponent-target and global selectors are kept as relationships too. They are useful
+    // for "what can target this card?" without being treated as direct-play combo effects.
+    const oppPatterns=[
+      ['OPP_KO',/\bK\.?O\.?\s+(?:up to\s+)?(?:\d+|one)\s+of your opponent(?:'s|’s)\s+(.{1,180}?)(?=[.;]|$)/gi],
+      ['OPP_REST',/\brest\s+(?:up to\s+)?(?:\d+|one)\s+of your opponent(?:'s|’s)\s+(.{1,180}?)(?=[.;]|$)/gi],
+      ['OPP_RETURN',/\breturn\s+(?:up to\s+)?(?:\d+|one)\s+of your opponent(?:'s|’s)\s+(.{1,180}?)\s+to\s+(?:the\s+)?owner(?:'s|’s)\s+hand/gi],
+      ['OPP_DEBUFF',/\bgive\s+(?:up to\s+)?(?:\d+|one)\s+of your opponent(?:'s|’s)\s+(.{1,180}?)\s+-\d+\s+(?:power|cost)/gi]
+    ];
+    for(const [kind,re] of oppPatterns)while((m=re.exec(section)))addUniqueRelation(out,relationRule(kind,m[1],{timing,sourceZone:'OPPONENT_FIELD',condition:nearbyCondition(section,m.index),evidence:m[0]}));
+    const globalKoRe=/\bK\.?O\.?\s+all\s+(?:rested\s+|active\s+)?(.{1,180}?)(?=[.;]|$)/gi;
+    while((m=globalKoRe.exec(section)))addUniqueRelation(out,relationRule('GLOBAL_KO',m[1],{timing,sourceZone:'FIELD',condition:nearbyCondition(section,m.index),evidence:m[0]}));
+    const globalRestrictRe=/\ball\s+(.{1,180}?)\s+(?:do not|cannot|can't)\s+(?:become active|attack|activate|be played)/gi;
+    while((m=globalRestrictRe.exec(section)))addUniqueRelation(out,relationRule('GLOBAL_RESTRICT',m[1],{timing,sourceZone:'FIELD',condition:nearbyCondition(section,m.index),evidence:m[0]}));
+
+    // Passive plural buffs / restrictions such as "your {X} type Characters gain ...".
+    const passiveRe=/(?:all of\s+)?your\s+(.{1,180}?)\s+(?:gain|get|have)\s+(?:\+|-)?\d+\s+(?:power|cost)/gi;
+    while((m=passiveRe.exec(section))){if(/\bhand\b/i.test(m[1]))continue;addUniqueRelation(out,relationRule(/cost/i.test(m[0])?'COST_REDUCE':'BUFF',m[1],{timing,sourceZone:'FIELD',condition:nearbyCondition(section,m.index),evidence:m[0]}))}
+    // Leader requirements.
+    const leaderNameRe=/\b(?:if|when)\s+your Leader\s+(?:is|has (?:the )?name)\s+\[([^\]]+)\]/gi;
+    while((m=leaderNameRe.exec(section)))addUniqueRelation(out,relationRule('REQUIRE',`[${m[1]}] Leader`,{timing,sourceZone:'FIELD',evidence:m[0],allowBroad:false}));
+    const leaderTraitRe=/\b(?:if|when)\s+your Leader\s+(?:has (?:the )?)?\{([^}]+)\}\s+type/gi;
+    while((m=leaderTraitRe.exec(section)))addUniqueRelation(out,relationRule('REQUIRE',`{${m[1]}} Leader`,{timing,sourceZone:'FIELD',evidence:m[0],allowBroad:false}));
+    const leaderInclRe=/\b(?:if|when)\s+your Leader(?:'s|’s)\s+type\s+includes?\s+["“]([^"”]+)["”]/gi;
+    while((m=leaderInclRe.exec(section)))addUniqueRelation(out,relationRule('REQUIRE',`type including "${m[1]}" Leader`,{timing,sourceZone:'FIELD',evidence:m[0],allowBroad:false}));
+    // Generic "if you have a ..." requirements. Broad hand-size/DON conditions are intentionally ignored.
+    const haveRe=/\bif\s+you have\s+(?:at least\s+)?(?:(?:a|an|one|\d+)(?:\s+or more)?\s+)?(.{1,180}?)(?=,|\.|;|:)/gi;
+    while((m=haveRe.exec(section))){const sel=m[1].replace(/\s+on your field$/i,'').trim();if(/\b(?:DON!!|cards? in your hand|Life cards?)\b/i.test(sel)&&!/\b(?:Leader|Character|Event|Stage)\b/i.test(sel)&&!/[\{\[]/.test(sel))continue;addUniqueRelation(out,relationRule('REQUIRE',sel,{timing,sourceZone:'FIELD',evidence:m[0],allowBroad:false}))}
+    // Catch explicit card-name references that use unusual wording. This is deliberately narrow:
+    // only [Card Name] tokens, never keyword labels, become fallback relationships.
+    for(const name of nonKeywordBracketNames(section)){
+      if(out.some(r=>r.named?.some?.(n=>normSearch(n)===normSearch(name))||r.branches?.some(b=>b.named?.some(n=>normSearch(n)===normSearch(name)))))continue;
+      addUniqueRelation(out,relationRule('MENTION',`[${name}]`,{timing,evidence:`[${name}]`,allowBroad:false}));
+    }
+    // Same fallback for explicit {Trait} references if no parsed rule already carries that trait.
+    for(const tr of [...new Set([...section.matchAll(/\{([^}]+)\}/g)].map(x=>x[1].trim()))]){
+      if(out.some(r=>r.branches?.some(b=>b.traits?.some(x=>normSearch(x)===normSearch(tr)))))continue;
+      addUniqueRelation(out,relationRule('MENTION',`{${tr}}`,{timing,evidence:`{${tr}}`,allowBroad:false}));
+    }
+  }
+  return out;
+}
+function cardLooksRelationshipRelevant(card){
+  const t=String(card?.text||'');if(!t)return false;
+  const explicitName=nonKeywordBracketNames(t).length>0;
+  return explicitName||/\{[^}]+\}|\bplay\b.{0,160}\bfrom\b|\b(?:add|return)\b.{0,160}\bfrom\b|\b(?:give|set|rest|trash|K\.?O\.?)\b.{0,120}\bof your\b.{0,100}\b(?:Leader|Character|Event|Stage)\b|\bif your Leader\b|\bif you have\b.{0,120}\b(?:Leader|Character|Event|Stage|type|cost|power)\b/i.test(t);
+}
+function buildRelationshipRules(){
+  state.relationshipRules.clear();const audit={cardsWithText:0,cardsWithRelations:0,rules:0,relationLikeClauses:0,parsedRelationLikeClauses:0,unknown:[]};
+  for(const c of state.cards){if(c.text) audit.cardsWithText++;const relevant=cardLooksRelationshipRelevant(c);if(relevant)audit.relationLikeClauses++;const rels=parseRelationships(c);if(rels.length){state.relationshipRules.set(c.id,rels);audit.cardsWithRelations++;audit.rules+=rels.length;if(relevant)audit.parsedRelationLikeClauses++}else if(relevant)audit.unknown.push({id:c.id,name:c.name,text:c.text.slice(0,260)})}
+  state.relationshipAudit=audit;
+}
+function cardRelations(c,kinds=null){const rs=state.relationshipRules.get(c?.id)||[];return kinds?rs.filter(r=>kinds.includes(r.kind)):rs}
+function relationshipCanTarget(source,target,kinds=null){return cardRelations(source,kinds).some(r=>relationMatchesTarget(target,r))}
+function relationTargetsForCard(source,kinds=null){
+  const rels=cardRelations(source,kinds),byId=new Map();for(const rel of rels){for(const t of state.cards){if(t.baseId===source.baseId||!relationMatchesTarget(t,rel))continue;const key=t.baseId;const old=byId.get(key)||{card:t,labels:[]};const label=`${relationLabel(rel.kind)}${rel.sourceZone&&rel.sourceZone!=='UNSPECIFIED'?` (${rel.sourceZone})`:''}${rel.reason?`: ${rel.reason}`:''}${rel.condition?` • falls ${rel.condition}`:''}`;if(!old.labels.includes(label))old.labels.push(label);byId.set(key,old)}}return [...byId.values()]
+}
+function relationSourcesForCard(target,kinds=null){
+  const byId=new Map();for(const s of state.cards){if(s.baseId===target.baseId)continue;for(const rel of cardRelations(s,kinds)){if(!relationMatchesTarget(target,rel))continue;const key=s.baseId;const old=byId.get(key)||{card:s,labels:[]};const label=`${relationLabel(rel.kind)}${rel.sourceZone&&rel.sourceZone!=='UNSPECIFIED'?` (${rel.sourceZone})`:''}${rel.reason?`: ${rel.reason}`:''}${rel.condition?` • falls ${rel.condition}`:''}`;if(!old.labels.includes(label))old.labels.push(label);byId.set(key,old)}}return [...byId.values()]
+}
+function renderParserAudit(){
+  const root=$('parserAudit');if(!root)return;const a=state.relationshipAudit||{};const relevant=a.relationLikeClauses||0,parsed=a.parsedRelationLikeClauses||0,pct=relevant?Math.round(parsed/relevant*100):100;const unknown=a.unknown||[];
+  root.innerHTML=`<div><b>${(a.rules||0).toLocaleString()}</b> erkannte Beziehungsregeln aus <b>${(a.cardsWithRelations||0).toLocaleString()}</b> Karten.</div><div class="${unknown.length?'audit-warn':'audit-good'}">Relationship-Hinweise auf Kartenebene erkannt: ${parsed}/${relevant} (${pct}%). ${unknown.length?`${unknown.length} Karten brauchen noch eine Sonderregel.`:'Keine offensichtlich beziehungsrelevante Karte ohne Regel gefunden.'}</div>${unknown.length?`<details><summary>Erste ${Math.min(20,unknown.length)} offene Karten anzeigen</summary><ul class="audit-list">${unknown.slice(0,20).map(x=>`<li><span class="audit-card-id">${escapeHtml(x.id)}</span> ${escapeHtml(x.name)} – ${escapeHtml(x.text.replace(/\s+/g,' ').slice(0,150))}</li>`).join('')}</ul></details><button id="downloadParserAudit" class="btn tiny" style="margin-top:8px">Offene Karten als TXT</button>`:''}`;
+  const btn=$('downloadParserAudit');if(btn)btn.onclick=downloadParserAudit;
+}
+function downloadParserAudit(){
+  const a=state.relationshipAudit||{},unknown=a.unknown||[];const lines=[`OP Synergy Builder v0.8.0 – Effect Relationship Audit`,`Cards with text: ${a.cardsWithText||0}`,`Cards with relationships: ${a.cardsWithRelations||0}`,`Relationship rules: ${a.rules||0}`,`Open cards: ${unknown.length}`,''];for(const x of unknown){lines.push(`${x.id} | ${x.name}`);lines.push(x.text);lines.push('---')}const blob=new Blob([lines.join('\n')],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),aTag=document.createElement('a');aTag.href=url;aTag.download='OPTCG_relationship_audit.txt';document.body.appendChild(aTag);aTag.click();aTag.remove();setTimeout(()=>URL.revokeObjectURL(url),500);
 }
 
 // --- Lightweight effect engine for combo playability ---
@@ -750,6 +941,22 @@ function candidateEffectiveCost(card,ctx){
   const src=sourceCostModifier(ctx.source,card,ctx);if(src.reduction>0){reduction+=src.reduction;reasons.push(...src.reasons)}
   let effective=Math.max(0,base-reduction);if(altCost!=null)effective=Math.min(effective,altCost);
   return {base,effective,reasons,discount:Math.max(0,base-effective)};
+}
+
+function relationConditionStatus(rel,ctx){
+  if(!rel?.condition)return {known:true,met:true,reason:''};
+  return conditionStatus(rel.condition,ctx);
+}
+function sourceDirectPlayInfo(source,candidate,ctx){
+  const possible=[];
+  for(const rel of cardRelations(source,['PLAY'])){
+    if(String(rel.timing||'').toLowerCase()!=='on play')continue;
+    if(!rel.comboSafe||!relationMatchesTarget(candidate,rel))continue;
+    const st=relationConditionStatus(rel,ctx);if(!st.known||!st.met)continue;
+    const extra=Math.max(0,Number(rel.donCost)||0);const zone=rel.sourceZone&&rel.sourceZone!=='UNSPECIFIED'?` aus ${rel.sourceZone}`:'';
+    possible.push({cost:extra,reason:`Startkarten-[On Play]: spielt diese Karte${zone}${extra?` für ${extra} zusätzliche DON!!`:' ohne weitere DON!!'} • ${rel.reason}`});
+  }
+  if(!possible.length)return {playable:false,cost:null,reasons:[]};possible.sort((a,b)=>a.cost-b.cost);return {playable:true,cost:possible[0].cost,reasons:[possible[0].reason]};
 }
 
 function filterValue(id){return $(id).value.trim()}
@@ -841,7 +1048,7 @@ function renderCombo(){
   const baseRemaining=Math.max(0,don-paidCost);const ctx={source,leader:state.deck.leader,turnDon:don,boardCharacters:knownBoardCharacters(source)};
   const resource=sourceDonEffect(source,ctx,paidCost);const remaining=Math.min(10,baseRemaining+resource.total);
   $('comboDon').textContent=don;$('comboSourceCost').textContent=paidCost;$('comboRefund').textContent=resource.total;$('comboRemaining').textContent=remaining;
-  let evaluated=comboPoolCards().filter(c=>c.baseId!==source.baseId).map(c=>({card:c,costInfo:candidateEffectiveCost(c,ctx)})).filter(x=>x.costInfo.effective<=remaining);
+  let evaluated=comboPoolCards().filter(c=>c.baseId!==source.baseId).map(c=>{let costInfo=candidateEffectiveCost(c,ctx);const direct=sourceDirectPlayInfo(source,c,ctx);if(direct.playable&&direct.cost<costInfo.effective)costInfo={...costInfo,effective:direct.cost,discount:Math.max(0,(costInfo.base??0)-direct.cost),reasons:[...costInfo.reasons,...direct.reasons],viaSourcePlay:true};return {card:c,costInfo,direct}}).filter(x=>x.costInfo.effective<=remaining);
   const cat=$('comboCategory').value,cardQ=normSearch($('comboTrait').value),textQ=$('comboText').value,costMin=num($('comboCostMin').value),costMax=num($('comboCostMax').value);
   if(cat)evaluated=evaluated.filter(x=>x.card.category===cat);
   if(costMin!=null)evaluated=evaluated.filter(x=>x.costInfo.effective>=costMin);
@@ -853,6 +1060,9 @@ function renderCombo(){
       // In der Combo-Hilfe bedeutet "Search": Diese Karte kann die gewählte Startkarte
       // laut ihrer tatsächlich erkannten Deck-Suchbedingung finden. Ein beliebiger Searcher reicht nicht.
       if(tag==='search')return searcherCanFindTarget(x.card,source);
+      if(tag==='plays-source')return relationshipCanTarget(x.card,source,['PLAY']);
+      if(tag==='gets-source')return relationshipCanTarget(x.card,source,['ADD_HAND']);
+      if(tag==='relates-source')return relationshipCanTarget(x.card,source);
       return effectTagMatches(x.card,tag);
     }));
   }
@@ -877,16 +1087,33 @@ function downloadDeckText(){const text=$('deckTransferText').value;const leader=
 function parseDeckText(text){const next={leader:null,cards:{}};const missing=[];let parsed=0;for(const rawLine of String(text||'').split(/\r?\n/)){const line=rawLine.trim();if(!line||line.startsWith('#'))continue;let leaderLine=false,id=null,qty=1;let m=line.match(/^LEADER\s*[:=-]?\s*([A-Z]{1,5}\d{0,3}-\d{3})\b/i);if(m){leaderLine=true;id=m[1].toUpperCase()}else if(/^LEADER\s*[:=-]?\s*-?\s*$/i.test(line)){continue}else{m=line.match(/^\s*(\d+)\s*x?\s+?([A-Z]{1,5}\d{0,3}-\d{3})\b/i)||line.match(/^\s*(\d+)x([A-Z]{1,5}\d{0,3}-\d{3})\b/i);if(m){qty=Number(m[1]);id=m[2].toUpperCase();leaderLine=/\/\/\s*leader\b/i.test(line)}}if(!id)continue;const c=findCardByDeckId(id);if(!c){missing.push(id);continue}parsed++;if(leaderLine||c.category==='Leader'){next.leader=c}else{const k=c.baseId;const old=next.cards[k]?.qty||0;next.cards[k]={card:c,qty:Math.min(4,old+Math.max(1,qty))}}}return {next,missing:[...new Set(missing)],parsed}}
 function applyDeckText(){const text=$('deckTransferText').value.trim();if(!text){$('transferStatus').textContent='Bitte zuerst einen Decktext einfügen.';$('transferStatus').className='transfer-status bad';return}const {next,missing,parsed}=parseDeckText(text);if(!parsed){$('transferStatus').textContent='Keine gültigen Karten-IDs erkannt. Beispiel: LEADER OP01-001 und 4x OP01-006';$('transferStatus').className='transfer-status bad';return}state.deck=next;renderDeck();applyFilters();let msg=`Deck geladen: ${deckTotal()} Main-Deck-Karten${next.leader?` + Leader ${next.leader.id}`:'; kein Leader erkannt'}.`;if(missing.length)msg+=` Nicht gefunden: ${missing.slice(0,12).join(', ')}${missing.length>12?' …':''}`;$('transferStatus').textContent=msg;$('transferStatus').className=`transfer-status ${missing.length?'bad':'good'}`}
 function syncRelatedColorChips(){const chips=document.querySelectorAll('[data-related-color]');chips.forEach(b=>{const c=b.dataset.relatedColor;b.classList.toggle('active',c===''?state.relatedColors.size===0:state.relatedColors.has(c))})}
-function openCard(c){state.selected=c;state.relatedTab='targets';state.relatedColors.clear();$('cardDialog').showModal();$('modalTitle').textContent=c.name;$('modalMeta').textContent=`${c.id} • ${c.colors.join('/')} • ${c.category}${c.cost!=null?` • ${c.cost} Cost`:''}${c.power!=null?` • ${c.power} Power`:''}${c.counter!=null?` • +${c.counter} Counter`:''}\n${c.traits.join(' / ')}`;$('modalText').textContent=c.text||'No effect text.';$('modalImage').innerHTML=`<img class="modalart" alt="${escapeHtml(c.name)}">`;const mart=$('modalImage').querySelector('.modalart');if(mart)wireCardImage(mart,c);$('relatedTrait').value='';syncRelatedColorChips();document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='targets'));updateModalButtons();renderRelated()}
+function openCard(c){state.selected=c;state.relatedTab='relationsOut';state.relatedColors.clear();$('cardDialog').showModal();$('modalTitle').textContent=c.name;$('modalMeta').textContent=`${c.id} • ${c.colors.join('/')} • ${c.category}${c.cost!=null?` • ${c.cost} Cost`:''}${c.power!=null?` • ${c.power} Power`:''}${c.counter!=null?` • +${c.counter} Counter`:''}\n${c.traits.join(' / ')}`;$('modalText').textContent=c.text||'No effect text.';$('modalImage').innerHTML=`<img class="modalart" alt="${escapeHtml(c.name)}">`;const mart=$('modalImage').querySelector('.modalart');if(mart)wireCardImage(mart,c);$('relatedTrait').value='';syncRelatedColorChips();document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='relationsOut'));updateModalButtons();renderRelated()}
 function updateModalButtons(){const c=state.selected;if(!c)return;$('modalLeader').classList.toggle('hidden',c.category!=='Leader');$('modalAdd').textContent=c.category==='Leader'?'Als Leader setzen':'+ Deck';$('modalAdd').onclick=()=>c.category==='Leader'?setLeader(c):addCard(c);$('modalLeader').onclick=()=>setLeader(c);$('modalCombo').onclick=()=>{try{$('cardDialog').close()}catch{}setComboSource(c,true)}}
 function sameTraitCards(c){if(!c.traits.length)return [];return state.cards.filter(x=>x.baseId!==c.baseId&&x.traits.some(t=>c.traits.some(ct=>normSearch(t)===normSearch(ct))))}
 function relatedCards(){
-  const c=state.selected;if(!c)return {cards:[],note:''};
-  if(state.relatedTab==='targets'){const rule=state.searchRules.get(c.id);if(!rule)return {cards:[],note:'Diese Karte wird nicht als Deck-Sucher erkannt. Es werden bewusst keine unsicheren Treffer erfunden.'};return {cards:pickBestPrint(state.cards.filter(x=>x.baseId!==c.baseId&&matchesRule(x,rule))),note:`Erkannte Deck-Suchbedingung: ${rule.reason}.`}}
-  if(state.relatedTab==='searchedBy'){const list=[];for(const x of state.cards){if(x.baseId!==c.baseId&&searcherCanFindTarget(x,c))list.push(x)}return {cards:pickBestPrint(list),note:`Nur echte Treffer: Die Suchbedingung des Searchers muss ${c.name} (${c.category}${c.traits.length?' • '+c.traits.join(' / '):''}) tatsächlich erlauben.`};}
-  return {cards:pickBestPrint(sameTraitCards(c)),note:`Karten mit mindestens einem exakt gleichen Type/Trait wie ${c.name}.`};
+  const c=state.selected;if(!c)return {items:[],note:''};
+  if(state.relatedTab==='relationsOut')return {items:relationTargetsForCard(c),note:`Alle sicher erkannten eigenen Kartenbeziehungen aus dem Effekttext von ${c.name}. Search, Play, Hand/Trash/Life, Bedingungen, Buffs und weitere Selektoren werden gemeinsam ausgewertet.`};
+  if(state.relatedTab==='relationsIn')return {items:relationSourcesForCard(c),note:`Karten, deren erkannte Effektregel ${c.name} tatsächlich als mögliches Ziel oder als Bedingung trifft.`};
+  if(state.relatedTab==='targets'){
+    const rules=cardRelations(c,['SEARCH']);if(!rules.length)return {items:[],note:'Diese Karte wird nicht als Deck-Sucher erkannt. Es werden bewusst keine unsicheren Search-Treffer erfunden.'};
+    const byId=new Map();for(const rule of rules){for(const card of state.cards){if(card.baseId===c.baseId||!relationMatchesTarget(card,rule))continue;const old=byId.get(card.baseId)||{card,labels:[]};const label=`Sucht: ${rule.reason}`;if(!old.labels.includes(label))old.labels.push(label);byId.set(card.baseId,old)}}
+    return {items:[...byId.values()],note:`${rules.length} erkannte Deck-Suchregel${rules.length===1?'':'n'} auf dieser Karte.`};
+  }
+  if(state.relatedTab==='searchedBy'){
+    const items=[];for(const x of pickBestPrint(state.cards)){if(x.baseId===c.baseId)continue;const rules=cardRelations(x,['SEARCH']).filter(r=>relationMatchesTarget(c,r));if(!rules.length)continue;items.push({card:x,labels:rules.slice(0,3).map(r=>`Sucht: ${r.reason}`)})}
+    return {items,note:`Nur echte Search-Treffer: Mindestens eine erkannte Suchbedingung muss ${c.name} (${c.category}${c.traits.length?' • '+c.traits.join(' / '):''}) tatsächlich erlauben.`};
+  }
+  return {items:pickBestPrint(sameTraitCards(c)).map(card=>({card,labels:[]})),note:`Karten mit mindestens einem exakt gleichen Type/Trait wie ${c.name}.`};
 }
-function renderRelated(){let {cards,note}=relatedCards();const trait=$('relatedTrait').value.trim().toLowerCase();if(state.relatedColors.size)cards=cards.filter(c=>c.colors.some(x=>state.relatedColors.has(x)));if(trait)cards=cards.filter(c=>c.traits.some(t=>t.toLowerCase().includes(trait)));$('relationNote').textContent=`${note} ${cards.length} Treffer.`;const root=$('relatedGrid');root.innerHTML='';for(const c of cards.slice(0,200)){const el=document.createElement('div');el.className='related-card';const ruleNote=state.relatedTab==='searchedBy'?(state.searchRules.get(c.id)?.reason||''):'';el.innerHTML=`<img class="relatedart" loading="lazy" alt="${escapeHtml(c.name)}"><div><b>${escapeHtml(c.name)}</b><span>${escapeHtml(c.id)} • ${escapeHtml(c.colors.join('/'))}${ruleNote?`<br>Sucht: ${escapeHtml(ruleNote)}`:''}</span></div>`;const rart=el.querySelector('.relatedart');if(rart)wireCardImage(rart,c);el.onclick=()=>openCard(c);root.appendChild(el)}$('relatedEmpty').classList.toggle('hidden',cards.length>0)}
+function renderRelated(){
+  let {items,note}=relatedCards();const trait=$('relatedTrait').value.trim().toLowerCase();
+  if(state.relatedColors.size)items=items.filter(x=>x.card.colors.some(c=>state.relatedColors.has(c)));
+  if(trait)items=items.filter(x=>x.card.traits.some(t=>t.toLowerCase().includes(trait))||x.card.name.toLowerCase().includes(trait)||x.card.id.toLowerCase().includes(trait));
+  items.sort((a,b)=>(a.card.cost??99)-(b.card.cost??99)||a.card.name.localeCompare(b.card.name));
+  $('relationNote').textContent=`${note} ${items.length} Treffer.`;const root=$('relatedGrid');root.innerHTML='';
+  for(const item of items.slice(0,300)){const c=item.card;const el=document.createElement('div');el.className='related-card';const labels=(item.labels||[]).slice(0,3);el.innerHTML=`<img class="relatedart" loading="lazy" alt="${escapeHtml(c.name)}"><div><b>${escapeHtml(c.name)}</b><span>${escapeHtml(c.id)} • ${escapeHtml(c.colors.join('/'))}</span>${labels.length?`<div>${labels.map(x=>`<span class="relation-kind">${escapeHtml(x)}</span>`).join('')}</div>`:''}</div>`;const rart=el.querySelector('.relatedart');if(rart)wireCardImage(rart,c);el.onclick=()=>openCard(c);root.appendChild(el)}
+  $('relatedEmpty').classList.toggle('hidden',items.length>0)
+}
 function syncCategoryChips(){document.querySelectorAll('.category-chip').forEach(b=>{const cat=b.dataset.category;b.classList.toggle('active',cat===''?state.categories.size===0:state.categories.has(cat))})}
 function initControls(){
   const cc=$('colorChips');for(const c of COLORS){const b=document.createElement('button');b.className='chip';b.dataset.color=c;b.textContent=c;b.onclick=()=>{state.colors.has(c)?state.colors.delete(c):state.colors.add(c);b.classList.toggle('active',state.colors.has(c));applyFilters()};cc.appendChild(b)}
