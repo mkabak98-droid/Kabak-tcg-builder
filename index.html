@@ -1,4 +1,4 @@
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OP Synergy Builder v0.8.0</title><style>
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OP Synergy Builder v0.8.1</title><style>
 
   :root{
     --bg:#0a0d12;--panel:#111722;--panel2:#151d2a;--panel3:#0d131d;--line:#263043;
@@ -200,7 +200,7 @@ body{background:radial-gradient(circle at 50% -20%,#1a2639 0,transparent 36%),va
   <header class="topbar">
     <div class="brand">
       <div class="brand-badge">OP</div>
-      <div><div class="brand-title">Synergy Builder <span class="muted" style="font-weight:650">v0.8.0</span></div><div class="brand-sub">OPTCG Deckbuilding & Combo-Hilfe</div></div>
+      <div><div class="brand-title">Synergy Builder <span class="muted" style="font-weight:650">v0.8.1</span></div><div class="brand-sub">OPTCG Deckbuilding & Combo-Hilfe</div></div>
     </div>
     <div class="top-nav">
       <button id="topCardsNav" class="nav-btn active">Karten</button>
@@ -606,14 +606,19 @@ function parseSelectorBranch(fragment){
   for(const m of s.matchAll(/\[([^\]]+)\]/g)){const n=m[1].trim();if(n&&!keywordLabels.test(n)&&!named.some(x=>normSearch(x)===normSearch(n)))named.push(n)}
   const nameIncludes=[...new Set([...s.matchAll(/(?:card )?name including\s+[\"“]([^\"”]+)[\"”]/gi)].map(m=>m[1].trim()).filter(Boolean))];
   const idIncludes=[...new Set([...s.matchAll(/card number including\s+[\"“']([^\"”']+)[\"”']/gi)].map(m=>m[1].trim().toUpperCase()).filter(Boolean))];
-  const costMax=(s.match(/(?:base\s+)?cost(?:\s+of)?\s+(\d+)\s+or less/i)||s.match(/(?:base\s+)?cost(?:\s+of)?\s+up to\s+(\d+)/i)||[])[1];
-  const costMin=(s.match(/(?:base\s+)?cost(?:\s+of)?\s+(\d+)\s+or more/i)||[])[1];
-  let costExact=null;if(costMax==null&&costMin==null){const m=s.match(/(?:with\s+(?:a\s+)?|whose\s+)?(?:base\s+)?cost(?:\s+of)?\s+(\d+)(?!\s+(?:or|and))/i);if(m)costExact=Number(m[1])}
-  const powerMax=(s.match(/power(?:\s+of)?\s+(\d+)\s+or less/i)||s.match(/(\d+)\s+power\s+or less/i)||s.match(/(\d+)\s+or less\s+power/i)||[])[1];
-  const powerMin=(s.match(/power(?:\s+of)?\s+(\d+)\s+or more/i)||s.match(/(\d+)\s+power\s+or more/i)||s.match(/(\d+)\s+or more\s+power/i)||[])[1];
-  let powerExact=null;if(powerMax==null&&powerMin==null){const m=s.match(/(?:with\s+(?:a\s+)?|whose\s+)?power(?:\s+of)?\s+(\d+)(?!\s+(?:or|and))/i)||s.match(/(?:with\s+)?(\d+)\s+power(?!\s+(?:or|and))/i);if(m)powerExact=Number(m[1])}
-  const counterMax=(s.match(/counter(?:\s+of)?\s+\+?(\d+)\s+or less/i)||s.match(/\+?(\d+)\s+counter\s+or less/i)||[])[1];
-  const counterMin=(s.match(/counter(?:\s+of)?\s+\+?(\d+)\s+or more/i)||s.match(/\+?(\d+)\s+counter\s+or more/i)||[])[1];
+  // Numeric ranges occur on real cards (e.g. "cost of 2 to 8"). Parse the
+  // range before exact-value rules so the lower bound is not misread as Cost = 2.
+  const costRange=s.match(/(?:base\s+)?cost(?:\s+of)?\s+(?:from\s+)?(\d+)\s*(?:to|[-–—])\s*(\d+)/i)||s.match(/(?:base\s+)?cost\s+between\s+(\d+)\s+and\s+(\d+)/i)||s.match(/(?:base\s+)?cost(?:\s+of)?\s+(\d+)\s+or more\s+and\s+(\d+)\s+or less/i);
+  const costMax=costRange?Math.max(Number(costRange[1]),Number(costRange[2])):(s.match(/(?:base\s+)?cost(?:\s+of)?\s+(\d+)\s+or less/i)||s.match(/(?:base\s+)?cost(?:\s+of)?\s+up to\s+(\d+)/i)||[])[1];
+  const costMin=costRange?Math.min(Number(costRange[1]),Number(costRange[2])):(s.match(/(?:base\s+)?cost(?:\s+of)?\s+(\d+)\s+or more/i)||[])[1];
+  let costExact=null;if(costRange==null&&costMax==null&&costMin==null){const m=s.match(/(?:with\s+(?:a\s+)?|whose\s+)?(?:base\s+)?cost(?:\s+of)?\s+(\d+)(?!\s*(?:to|[-–—]|or|and))/i);if(m)costExact=Number(m[1])}
+  const powerRange=s.match(/power(?:\s+of)?\s+(?:from\s+)?(\d+)\s*(?:to|[-–—])\s*(\d+)/i)||s.match(/power\s+between\s+(\d+)\s+and\s+(\d+)/i)||s.match(/power(?:\s+of)?\s+(\d+)\s+or more\s+and\s+(\d+)\s+or less/i);
+  const powerMax=powerRange?Math.max(Number(powerRange[1]),Number(powerRange[2])):(s.match(/power(?:\s+of)?\s+(\d+)\s+or less/i)||s.match(/(\d+)\s+power\s+or less/i)||s.match(/(\d+)\s+or less\s+power/i)||[])[1];
+  const powerMin=powerRange?Math.min(Number(powerRange[1]),Number(powerRange[2])):(s.match(/power(?:\s+of)?\s+(\d+)\s+or more/i)||s.match(/(\d+)\s+power\s+or more/i)||s.match(/(\d+)\s+or more\s+power/i)||[])[1];
+  let powerExact=null;if(powerRange==null&&powerMax==null&&powerMin==null){const m=s.match(/(?:with\s+(?:a\s+)?|whose\s+)?power(?:\s+of)?\s+(\d+)(?!\s*(?:to|[-–—]|or|and))/i)||s.match(/(?:with\s+)?(\d+)\s+power(?!\s*(?:to|[-–—]|or|and))/i);if(m)powerExact=Number(m[1])}
+  const counterRange=s.match(/counter(?:\s+of)?\s+\+?(\d+)\s*(?:to|[-–—])\s*\+?(\d+)/i)||s.match(/counter\s+between\s+\+?(\d+)\s+and\s+\+?(\d+)/i);
+  const counterMax=counterRange?Math.max(Number(counterRange[1]),Number(counterRange[2])):(s.match(/counter(?:\s+of)?\s+\+?(\d+)\s+or less/i)||s.match(/\+?(\d+)\s+counter\s+or less/i)||[])[1];
+  const counterMin=counterRange?Math.min(Number(counterRange[1]),Number(counterRange[2])):(s.match(/counter(?:\s+of)?\s+\+?(\d+)\s+or more/i)||s.match(/\+?(\d+)\s+counter\s+or more/i)||[])[1];
   const attributes=[...new Set([...s.matchAll(/\b(Slash|Strike|Special|Wisdom|Ranged)\s+attribute/gi)].map(m=>m[1][0].toUpperCase()+m[1].slice(1).toLowerCase()))];
   const requiresTrigger=/\[Trigger\]|with\s+(?:a\s+)?Trigger/i.test(s);
   return {colors,traits,categories,named,nameIncludes,idIncludes,max:costMax?Number(costMax):null,min:costMin?Number(costMin):null,costExact,powerMax:powerMax?Number(powerMax):null,powerMin:powerMin?Number(powerMin):null,powerExact,counterMax:counterMax?Number(counterMax):null,counterMin:counterMin?Number(counterMin):null,attributes,requiresTrigger,raw:s};
@@ -640,6 +645,11 @@ function selectorFromSearchChunk(chunk){
   for(const re of patterns){const m=chunk.match(re);if(m&&m[1])return m[1].trim()}
   return '';
 }
+function searchConditionBeforeAction(chunk,index){
+  const prefix=String(chunk||'').slice(Math.max(0,index-280),index).replace(/^\s*\[[^\]]+\]\s*/,'').trim();
+  const m=prefix.match(/\bif\s+(.{1,220}?)(?:[,;]\s*(?:then\s*)?)?$/i);
+  return m?m[1].trim():'';
+}
 function parseSearchRules(card){
   const rules=[];
   for(const chunk of searchEffectChunks(card.text)){
@@ -663,8 +673,10 @@ function parseSearchRules(card){
       if(full.requiresTrigger)for(const b of branches)b.requiresTrigger=true;
     }
     const reason=branches.map(selectorReason).join(' ODER ');
-    const rule={scope:'deck',branches,exclusions,reason,raw:selector};
-    const sig=JSON.stringify([branches.map(selectorReason),exclusions]);if(!rules.some(r=>r._sig===sig)){rule._sig=sig;rules.push(rule)}
+    const actionIndex=chunk.search(/\b(?:search your deck|look at|reveal (?:up to\s+)?\d+ cards? from)/i);
+    const condition=actionIndex>=0?searchConditionBeforeAction(chunk,actionIndex):'';
+    const rule={scope:'deck',branches,exclusions,reason,raw:selector,condition};
+    const sig=JSON.stringify([branches.map(selectorReason),exclusions,condition]);if(!rules.some(r=>r._sig===sig)){rule._sig=sig;rules.push(rule)}
   }
   return rules;
 }
@@ -694,11 +706,16 @@ function matchesRule(target,rule){
   if(rule.exclusions?.some(n=>normSearch(target.name)===normSearch(n)))return false;
   return rule.branches.some(b=>matchesSelectorBranch(target,b));
 }
+function relationConditionAllows(rel){
+  if(!rel?.condition)return true;
+  const st=conditionStatus(rel.condition,{leader:state.deck.leader,boardCharacters:[],turnDon:10});
+  return st.known?st.met:true;
+}
 function searcherCanFindTarget(searcher,target){
   if(!searcher||!target)return false;
   const rels=state.relationshipRules?.get(searcher.id)?.filter(r=>r.kind==='SEARCH')||[];
-  if(rels.length)return rels.some(r=>relationMatchesTarget(target,r));
-  return parseSearchRules(searcher).some(r=>matchesRule(target,r));
+  if(rels.length)return rels.some(r=>relationMatchesTarget(target,r)&&relationConditionAllows(r));
+  return parseSearchRules(searcher).some(r=>matchesRule(target,r)&&relationConditionAllows(r));
 }
 
 // --- General relationship engine -------------------------------------------------
@@ -769,7 +786,7 @@ function nonKeywordBracketNames(text){
 }
 function parseRelationships(card){
   const out=[];
-  for(const search of parseSearchRules(card))addUniqueRelation(out,{kind:'SEARCH',branches:search.branches,exclusions:search.exclusions||[],reason:search.reason,raw:search.raw,timing:'',sourceZone:'DECK',targetZone:'HAND',condition:'',evidence:search.raw,comboSafe:true,donCost:0});
+  for(const search of parseSearchRules(card))addUniqueRelation(out,{kind:'SEARCH',branches:search.branches,exclusions:search.exclusions||[],reason:search.reason,raw:search.raw,timing:'',sourceZone:'DECK',targetZone:'HAND',condition:search.condition||'',evidence:search.raw,comboSafe:true,donCost:0});
   for(const section of labelledEffectSections(card)){
     const timing=timingFromSection(section);
     let m;
@@ -844,7 +861,7 @@ function buildRelationshipRules(){
   state.relationshipAudit=audit;
 }
 function cardRelations(c,kinds=null){const rs=state.relationshipRules.get(c?.id)||[];return kinds?rs.filter(r=>kinds.includes(r.kind)):rs}
-function relationshipCanTarget(source,target,kinds=null){return cardRelations(source,kinds).some(r=>relationMatchesTarget(target,r))}
+function relationshipCanTarget(source,target,kinds=null){return cardRelations(source,kinds).some(r=>relationMatchesTarget(target,r)&&relationConditionAllows(r))}
 function relationTargetsForCard(source,kinds=null){
   const rels=cardRelations(source,kinds),byId=new Map();for(const rel of rels){for(const t of state.cards){if(t.baseId===source.baseId||!relationMatchesTarget(t,rel))continue;const key=t.baseId;const old=byId.get(key)||{card:t,labels:[]};const label=`${relationLabel(rel.kind)}${rel.sourceZone&&rel.sourceZone!=='UNSPECIFIED'?` (${rel.sourceZone})`:''}${rel.reason?`: ${rel.reason}`:''}${rel.condition?` • falls ${rel.condition}`:''}`;if(!old.labels.includes(label))old.labels.push(label);byId.set(key,old)}}return [...byId.values()]
 }
@@ -857,7 +874,7 @@ function renderParserAudit(){
   const btn=$('downloadParserAudit');if(btn)btn.onclick=downloadParserAudit;
 }
 function downloadParserAudit(){
-  const a=state.relationshipAudit||{},unknown=a.unknown||[];const lines=[`OP Synergy Builder v0.8.0 – Effect Relationship Audit`,`Cards with text: ${a.cardsWithText||0}`,`Cards with relationships: ${a.cardsWithRelations||0}`,`Relationship rules: ${a.rules||0}`,`Open cards: ${unknown.length}`,''];for(const x of unknown){lines.push(`${x.id} | ${x.name}`);lines.push(x.text);lines.push('---')}const blob=new Blob([lines.join('\n')],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),aTag=document.createElement('a');aTag.href=url;aTag.download='OPTCG_relationship_audit.txt';document.body.appendChild(aTag);aTag.click();aTag.remove();setTimeout(()=>URL.revokeObjectURL(url),500);
+  const a=state.relationshipAudit||{},unknown=a.unknown||[];const lines=[`OP Synergy Builder v0.8.1 – Effect Relationship Audit`,`Cards with text: ${a.cardsWithText||0}`,`Cards with relationships: ${a.cardsWithRelations||0}`,`Relationship rules: ${a.rules||0}`,`Open cards: ${unknown.length}`,''];for(const x of unknown){lines.push(`${x.id} | ${x.name}`);lines.push(x.text);lines.push('---')}const blob=new Blob([lines.join('\n')],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),aTag=document.createElement('a');aTag.href=url;aTag.download='OPTCG_relationship_audit.txt';document.body.appendChild(aTag);aTag.click();aTag.remove();setTimeout(()=>URL.revokeObjectURL(url),500);
 }
 
 // --- Lightweight effect engine for combo playability ---
@@ -1096,11 +1113,11 @@ function relatedCards(){
   if(state.relatedTab==='relationsIn')return {items:relationSourcesForCard(c),note:`Karten, deren erkannte Effektregel ${c.name} tatsächlich als mögliches Ziel oder als Bedingung trifft.`};
   if(state.relatedTab==='targets'){
     const rules=cardRelations(c,['SEARCH']);if(!rules.length)return {items:[],note:'Diese Karte wird nicht als Deck-Sucher erkannt. Es werden bewusst keine unsicheren Search-Treffer erfunden.'};
-    const byId=new Map();for(const rule of rules){for(const card of state.cards){if(card.baseId===c.baseId||!relationMatchesTarget(card,rule))continue;const old=byId.get(card.baseId)||{card,labels:[]};const label=`Sucht: ${rule.reason}`;if(!old.labels.includes(label))old.labels.push(label);byId.set(card.baseId,old)}}
+    const byId=new Map();for(const rule of rules){for(const card of state.cards){if(card.baseId===c.baseId||!relationMatchesTarget(card,rule))continue;const old=byId.get(card.baseId)||{card,labels:[]};const label=`Sucht: ${rule.reason}${rule.condition?` • Bedingung: ${rule.condition}`:''}`;if(!old.labels.includes(label))old.labels.push(label);byId.set(card.baseId,old)}}
     return {items:[...byId.values()],note:`${rules.length} erkannte Deck-Suchregel${rules.length===1?'':'n'} auf dieser Karte.`};
   }
   if(state.relatedTab==='searchedBy'){
-    const items=[];for(const x of pickBestPrint(state.cards)){if(x.baseId===c.baseId)continue;const rules=cardRelations(x,['SEARCH']).filter(r=>relationMatchesTarget(c,r));if(!rules.length)continue;items.push({card:x,labels:rules.slice(0,3).map(r=>`Sucht: ${r.reason}`)})}
+    const items=[];for(const x of pickBestPrint(state.cards)){if(x.baseId===c.baseId)continue;const rules=cardRelations(x,['SEARCH']).filter(r=>relationMatchesTarget(c,r)&&relationConditionAllows(r));if(!rules.length)continue;items.push({card:x,labels:rules.slice(0,3).map(r=>`Sucht: ${r.reason}${r.condition?` • Bedingung: ${r.condition}`:''}`)})}
     return {items,note:`Nur echte Search-Treffer: Mindestens eine erkannte Suchbedingung muss ${c.name} (${c.category}${c.traits.length?' • '+c.traits.join(' / '):''}) tatsächlich erlauben.`};
   }
   return {items:pickBestPrint(sameTraitCards(c)).map(card=>({card,labels:[]})),note:`Karten mit mindestens einem exakt gleichen Type/Trait wie ${c.name}.`};
